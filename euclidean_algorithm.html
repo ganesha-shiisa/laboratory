@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ユークリッドの互除法 ビジュアライザー</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background-color: #1a1a1e;
+      color: #e0e0e0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      margin-top: 0;
+      font-size: 1.3rem;
+      font-weight: 500;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      background: #25252b;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+    canvas {
+      background-color: #000;
+      border-radius: 4px;
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+    }
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 500px;
+    }
+    .control-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.95rem;
+    }
+    .control-row label {
+      width: 140px;
+      font-family: monospace;
+    }
+    .control-row input[type="range"] {
+      flex: 1;
+      cursor: pointer;
+    }
+    .control-row span.val {
+      width: 40px;
+      text-align: right;
+      font-family: monospace;
+      font-weight: bold;
+      color: #70b0ff;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>ユークリッドの互除法 ビジュアライザー</h1>
+    <canvas id="canvas" width="500" height="500"></canvas>
+
+    <div class="controls">
+      <div class="control-row">
+        <label for="sliderA">numA (1〜49):</label>
+        <input type="range" id="sliderA" min="1" max="49" value="6">
+        <span class="val" id="valA">6</span>
+      </div>
+
+      <div class="control-row">
+        <label for="sliderB">numB (2〜50):</label>
+        <input type="range" id="sliderB" min="2" max="50" value="10">
+        <span class="val" id="valB">10</span>
+      </div>
+
+      <div class="control-row">
+        <label for="sliderThreshold">threshold (5〜200):</label>
+        <input type="range" id="sliderThreshold" min="5" max="200" value="98">
+        <span class="val" id="valThreshold">98</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // カラーパレット管理
+    class ColorSelector {
+      constructor(count) {
+        this.colors = [];
+        for (let i = 0; i < count; i++) {
+          const r = Math.floor(64 + Math.random() * 192);
+          const g = Math.floor(64 + Math.random() * 192);
+          const b = Math.floor(64 + Math.random() * 192);
+          this.colors.push(`rgb(${r}, ${g}, ${b})`);
+        }
+        this.index = 0;
+      }
+      getNext() {
+        const c = this.colors[this.index];
+        this.index = (this.index + 1) % this.colors.length;
+        return c;
+      }
+      reset() {
+        this.index = 0;
+      }
+    }
+
+    const colorSelector = new ColorSelector(1000);
+
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const sliderA = document.getElementById('sliderA');
+    const sliderB = document.getElementById('sliderB');
+    const sliderThreshold = document.getElementById('sliderThreshold');
+
+    const valA = document.getElementById('valA');
+    const valB = document.getElementById('valB');
+    const valThreshold = document.getElementById('valThreshold');
+
+    let numA = parseInt(sliderA.value, 10);
+    let numB = parseInt(sliderB.value, 10);
+    let threshold = parseInt(sliderThreshold.value, 10);
+
+    function divRect(xPos, yPos, wd, ratio) {
+      let itr = 0;
+      const xEndPos = xPos + wd;
+      const yEndPos = yPos + wd / ratio;
+
+      ctx.fillStyle = colorSelector.getNext();
+      ctx.fillRect(xPos, yPos, wd, wd / ratio);
+
+      while (wd > threshold) {
+        itr++;
+        if (itr % 2 === 0) {
+          while (xPos + wd < xEndPos + 0.1) {
+            divSquare(xPos, yPos, wd, ratio);
+            xPos += wd;
+          }
+          wd = xEndPos - xPos;
+        } else {
+          while (yPos + wd < yEndPos + 0.1) {
+            divSquare(xPos, yPos, wd, ratio);
+            yPos += wd;
+          }
+          wd = yEndPos - yPos;
+        }
+      }
+    }
+
+    function divSquare(xPos, yPos, wd, ratio) {
+      let itr = 0;
+      const xEndPos = xPos + wd;
+      const yEndPos = yPos + wd;
+
+      ctx.fillStyle = colorSelector.getNext();
+      ctx.fillRect(xPos, yPos, wd, wd);
+
+      while (wd > threshold) {
+        itr++;
+        if (itr % 2 === 1) {
+          while (xPos + wd * ratio < xEndPos + 0.1) {
+            divRect(xPos, yPos, wd * ratio, ratio);
+            xPos += wd * ratio;
+          }
+          wd = xEndPos - xPos;
+        } else {
+          while (yPos + wd / ratio < yEndPos + 0.1) {
+            divRect(xPos, yPos, wd, ratio);
+            yPos += wd / ratio;
+          }
+          wd = yEndPos - yPos;
+        }
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      colorSelector.reset();
+
+      const ratio = numB / numA;
+      divSquare(0, 0, canvas.width, ratio);
+    }
+
+    // numB > numA 拘束イベントハンドラ
+    sliderA.addEventListener('input', () => {
+      let val_a = parseInt(sliderA.value, 10);
+      let val_b = parseInt(sliderB.value, 10);
+
+      // numB > numA を維持
+      if (val_b <= val_a) {
+        val_b = Math.min(parseInt(sliderB.max, 10), val_a + 1);
+        if (val_a >= val_b) {
+          val_a = val_b - 1;
+          sliderA.value = val_a;
+        }
+        sliderB.value = val_b;
+      }
+      updateValues();
+    });
+
+    sliderB.addEventListener('input', () => {
+      let val_a = parseInt(sliderA.value, 10);
+      let val_b = parseInt(sliderB.value, 10);
+
+      // numB > numA を維持
+      if (val_a >= val_b) {
+        val_a = Math.max(parseInt(sliderA.min, 10), val_b - 1);
+        if (val_b <= val_a) {
+          val_b = val_a + 1;
+          sliderB.value = val_b;
+        }
+        sliderA.value = val_a;
+      }
+      updateValues();
+    });
+
+    sliderThreshold.addEventListener('input', updateValues);
+
+    function updateValues() {
+      numA = parseInt(sliderA.value, 10);
+      numB = parseInt(sliderB.value, 10);
+      threshold = parseInt(sliderThreshold.value, 10);
+
+      valA.textContent = numA;
+      valB.textContent = numB;
+      valThreshold.textContent = threshold;
+
+      draw();
+    }
+
+    // 初回描画
+    draw();
+  </script>
+</body>
+</html>
+
