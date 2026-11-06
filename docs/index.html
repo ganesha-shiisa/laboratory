@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🧪 Laboratory - Web Experiments</title>
+  <style>
+    :root {
+      --bg-color: #121214;
+      --card-bg: #1e1e24;
+      --card-hover: #26262e;
+      --text-main: #f0f0f4;
+      --text-sub: #9ca3af;
+      --accent: #60a5fa;
+      --border: #33333d;
+    }
+
+    body {
+      margin: 0;
+      padding: 40px 20px;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 680px;
+    }
+
+    header {
+      margin-bottom: 32px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 20px;
+    }
+
+    h1 {
+      margin: 0 0 8px 0;
+      font-size: 1.8rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    p.subtitle {
+      margin: 0;
+      color: var(--text-sub);
+      font-size: 0.95rem;
+    }
+
+    .experiment-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .card {
+      display: block;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      text-decoration: none;
+      color: inherit;
+      transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .card:hover {
+      background-color: var(--card-hover);
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .badge {
+      font-size: 0.75rem;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: #1e3a5f;
+      color: #93c5fd;
+      font-weight: 500;
+    }
+
+    .card-desc {
+      margin: 0 0 12px 0;
+      font-size: 0.9rem;
+      color: var(--text-sub);
+      line-height: 1.5;
+    }
+
+    .card-footer {
+      font-size: 0.8rem;
+      color: #6b7280;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>🧪 Laboratory</h1>
+      <p class="subtitle">Personal R&D Sandbox & Web Experiments</p>
+    </header>
+
+    <main class="experiment-list">
+      <!-- ユークリッドの互除法へのリンク -->
+      <a href="euclidean_algorithm.html" class="card">
+        <div class="card-header">
+          <span class="card-title">ユークリッドの互除法 ビジュアライザー</span>
+          <span class="badge">Math</span>
+        </div>
+        <p class="card-desc">
+          比率に応じた長方形・正方形の再帰的幾何分割を可視化。画面サイズ連動のレスポンシブ表示およびパラメータの動的変更に対応。
+        </p>
+        <div class="card-footer">
+          使用技術: HTML5 Canvas / JavaScript (Vanilla)
+        </div>
+      </a>
+    </main>
+  </div>
+
+</body>
+</html>
+
