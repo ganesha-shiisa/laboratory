@@ -1,0 +1,395 @@
+<!--
+  対数螺旋
+  
+  参考書籍:
+  『数学から創るジェネラティブアート ― Processingで学ぶかたちのデザイン』
+  著: 巴山竜来 (技術評論社)
+-->
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Logarithmic Spiral Visualization</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        user-select: none;
+      }
+
+      body {
+        font-family: Consolas, monospace, sans-serif;
+        background-color: #050505;
+        color: #dcdcdc;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      #canvas-container {
+        flex: 1;
+        width: 100%;
+        min-height: 200px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      #ui-panel {
+        background-color: #1e1e22;
+        border-top: 2px solid #464650;
+        padding: 16px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        z-index: 10;
+      }
+
+      .ui-row {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        font-size: 14px;
+      }
+
+      .ui-label {
+        width: 150px;
+        flex-shrink: 0;
+        text-align: left;
+      }
+
+      .ui-slider-container {
+        display: flex;
+        align-items: center;
+        flex: 1;
+        max-width: 600px;
+        gap: 12px;
+      }
+
+      input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 100%;
+        height: 10px;
+        border-radius: 5px;
+        background: #3c3c3c;
+        outline: none;
+        position: relative;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #dcdcdc;
+        border: 2px solid #1e1e1e;
+        cursor: pointer;
+        transition: transform 0.1s ease;
+      }
+
+      input[type="range"]::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #dcdcdc;
+        border: 2px solid #1e1e1e;
+        cursor: pointer;
+      }
+
+      input[type="range"]::-webkit-slider-thumb:hover {
+        transform: scale(1.15);
+      }
+
+      .palette-options {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .color-swatch {
+        width: 20px;
+        height: 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        border: 1px solid #464646;
+        box-sizing: border-box;
+        transition:
+          transform 0.1s ease,
+          border-color 0.1s ease;
+      }
+
+      .color-swatch:hover {
+        transform: scale(1.1);
+      }
+
+      .color-swatch.selected {
+        border: 2px solid #ffffff;
+        box-shadow: 0 0 4px rgba(255, 255, 255, 0.6);
+        transform: scale(1.15);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="canvas-container">
+      <canvas id="spiralCanvas"></canvas>
+    </div>
+
+    <div id="ui-panel">
+      <!-- n (corners) -->
+      <div class="ui-row">
+        <span class="ui-label" id="label-n">n (corners): 4</span>
+        <div class="ui-slider-container">
+          <input
+            type="range"
+            id="slider-n"
+            min="3"
+            max="12"
+            step="1"
+            value="4"
+          />
+        </div>
+      </div>
+
+      <!-- rotation (deg) -->
+      <div class="ui-row">
+        <span class="ui-label" id="label-rotation">rotation (deg): 45.00</span>
+        <div class="ui-slider-container">
+          <input
+            type="range"
+            id="slider-rotation"
+            min="0"
+            max="360"
+            step="1"
+            value="45"
+          />
+        </div>
+      </div>
+
+      <!-- gap -->
+      <div class="ui-row">
+        <span class="ui-label" id="label-gap">gap: 0.20</span>
+        <div class="ui-slider-container">
+          <input
+            type="range"
+            id="slider-gap"
+            min="0.02"
+            max="0.50"
+            step="0.01"
+            value="0.20"
+          />
+        </div>
+      </div>
+
+      <!-- BG Color -->
+      <div class="ui-row">
+        <span class="ui-label">BG Color:</span>
+        <div class="palette-options" id="palette-bg"></div>
+      </div>
+
+      <!-- Line Color -->
+      <div class="ui-row">
+        <span class="ui-label">Line Color:</span>
+        <div class="palette-options" id="palette-line"></div>
+      </div>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("spiralCanvas");
+      const ctx = canvas.getContext("2d");
+      const container = document.getElementById("canvas-container");
+
+      const bgColors = ["#050505", "#0B0F19", "#1A0B2E", "#1E222A", "#000000"];
+      const lineColors = [
+        "#00F0FF",
+        "#FF2A6D",
+        "#FF9E00",
+        "#A0E7E5",
+        "#E5C158",
+      ];
+
+      let selectedBgIdx = 0;
+      let selectedLineIdx = 0;
+
+      const sliderN = document.getElementById("slider-n");
+      const sliderRotation = document.getElementById("slider-rotation");
+      const sliderGap = document.getElementById("slider-gap");
+
+      const labelN = document.getElementById("label-n");
+      const labelRotation = document.getElementById("label-rotation");
+      const labelGap = document.getElementById("label-gap");
+
+      const paletteBgEl = document.getElementById("palette-bg");
+      const paletteLineEl = document.getElementById("palette-line");
+
+      // カラーパレットUI生成
+      function createPalette(container, colors, selectedIdx, onSelect) {
+        container.innerHTML = "";
+        colors.forEach((col, idx) => {
+          const swatch = document.createElement("div");
+          swatch.className =
+            "color-swatch" + (idx === selectedIdx ? " selected" : "");
+          swatch.style.backgroundColor = col;
+          swatch.addEventListener("click", () => {
+            onSelect(idx);
+            Array.from(container.children).forEach((c, i) => {
+              c.classList.toggle("selected", i === idx);
+            });
+            draw();
+          });
+          container.appendChild(swatch);
+        });
+      }
+
+      createPalette(paletteBgEl, bgColors, selectedBgIdx, (idx) => {
+        selectedBgIdx = idx;
+        document.body.style.backgroundColor = bgColors[selectedBgIdx];
+      });
+
+      createPalette(paletteLineEl, lineColors, selectedLineIdx, (idx) => {
+        selectedLineIdx = idx;
+      });
+
+      function updateSliderFill(slider) {
+        const min = parseFloat(slider.min);
+        const max = parseFloat(slider.max);
+        const val = parseFloat(slider.value);
+        const percentage = ((val - min) / (max - min)) * 100;
+        slider.style.background = `linear-gradient(to right, #4682b4 0%, #4682b4 ${percentage}%, #3c3c3c ${percentage}%, #3c3c3c 100%)`;
+      }
+
+      [sliderN, sliderRotation, sliderGap].forEach((slider) => {
+        updateSliderFill(slider);
+        slider.addEventListener("input", () => {
+          updateSliderFill(slider);
+          updateLabels();
+          draw();
+        });
+      });
+
+      function updateLabels() {
+        labelN.textContent = `n (corners): ${sliderN.value}`;
+        labelRotation.textContent = `rotation (deg): ${parseFloat(sliderRotation.value).toFixed(2)}`;
+        labelGap.textContent = `gap: ${parseFloat(sliderGap.value).toFixed(2)}`;
+      }
+
+      function createRegularPolygonPoints(n, center, radius, rotation) {
+        const points = [];
+        const [cx, cy] = center;
+        for (let i = 0; i < n; i++) {
+          // -pi/2 で真上（12時方向）から開始し、rotation 分傾ける
+          const angle = -Math.PI / 2 + rotation + (2 * Math.PI * i) / n;
+          const x = cx + radius * Math.cos(angle);
+          const y = cy + radius * Math.sin(angle);
+          points.push([x, y]);
+        }
+        return points;
+      }
+
+      function shiftPoint(pointA, pointB, gap) {
+        return [
+          pointA[0] + (pointB[0] - pointA[0]) * gap,
+          pointA[1] + (pointB[1] - pointA[1]) * gap,
+        ];
+      }
+
+      function shiftPoints(points, gap) {
+        const shifted = [];
+        const len = points.length;
+        for (let i = 0; i < len; i++) {
+          const pA = points[i];
+          const pB = points[(i + 1) % len];
+          shifted.push(shiftPoint(pA, pB, gap));
+        }
+        return shifted;
+      }
+
+      function getMaxEdgeLength(points) {
+        if (points.length < 2) return 0;
+        let maxLen = 0;
+        const len = points.length;
+        for (let i = 0; i < len; i++) {
+          const p1 = points[i];
+          const p2 = points[(i + 1) % len];
+          const dx = p2[0] - p1[0];
+          const dy = p2[1] - p1[1];
+          const dist = Math.hypot(dx, dy);
+          if (dist > maxLen) {
+            maxLen = dist;
+          }
+        }
+        return maxLen;
+      }
+
+      function drawPolygon(points, strokeColor) {
+        if (points.length < 3) return;
+        ctx.beginPath();
+        ctx.moveTo(points[0][0], points[0][1]);
+        for (let i = 1; i < points.length; i++) {
+          ctx.lineTo(points[i][0], points[i][1]);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      function draw() {
+        const rect = container.getBoundingClientRect();
+        const width = rect.width;
+        const height = rect.height;
+
+        const bgColor = bgColors[selectedBgIdx];
+        const lineColor = lineColors[selectedLineIdx];
+
+        ctx.fillStyle = bgColor;
+        ctx.fillRect(0, 0, width, height);
+
+        const n = parseInt(sliderN.value, 10);
+        const rotationRad =
+          (parseFloat(sliderRotation.value) * Math.PI) / 180.0;
+        const gap = parseFloat(sliderGap.value);
+
+        const center = [width / 2, height / 2];
+        const radius = Math.min(width, height) * 0.44;
+
+        let points = createRegularPolygonPoints(n, center, radius, rotationRad);
+        drawPolygon(points, lineColor);
+
+        while (true) {
+          if (getMaxEdgeLength(points) < 1) {
+            break;
+          }
+          points = shiftPoints(points, gap);
+          drawPolygon(points, lineColor);
+        }
+      }
+
+      function resizeCanvas() {
+        const rect = container.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = Math.round(rect.width * dpr);
+        canvas.height = Math.round(rect.height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        draw();
+      }
+
+      window.addEventListener("resize", () => {
+        resizeCanvas();
+      });
+
+      // 初期化
+      updateLabels();
+      resizeCanvas();
+    </script>
+  </body>
+</html>
