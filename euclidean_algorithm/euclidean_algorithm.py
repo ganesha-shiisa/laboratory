@@ -6,6 +6,7 @@
     出版社: 技術評論社 (2019)
     URL: https://gihyo.jp/book/2019/978-4-297-10463-4
 """
+
 import random
 
 import pygame
@@ -98,7 +99,9 @@ class Slider:
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             mouse_x, mouse_y = event.pos
             handle_x = self.rect.x + int(
-                (self.value - self.min_val) / (self.max_val - self.min_val) * self.rect.w
+                (self.value - self.min_val)
+                / (self.max_val - self.min_val)
+                * self.rect.w
             )
             handle_rect = pygame.Rect(
                 handle_x - self.handle_radius,
@@ -127,7 +130,9 @@ class Slider:
 
     def draw(self, surface):
         # 背景バー
-        pygame.draw.rect(surface, (60, 60, 60), self.rect, border_radius=self.rect.h // 2)
+        pygame.draw.rect(
+            surface, (60, 60, 60), self.rect, border_radius=self.rect.h // 2
+        )
         # つまみ位置
         handle_x = self.rect.x + int(
             (self.value - self.min_val) / (self.max_val - self.min_val) * self.rect.w
@@ -136,7 +141,9 @@ class Slider:
         filled_rect = pygame.Rect(
             self.rect.x, self.rect.y, handle_x - self.rect.x, self.rect.h
         )
-        pygame.draw.rect(surface, (70, 130, 180), filled_rect, border_radius=self.rect.h // 2)
+        pygame.draw.rect(
+            surface, (70, 130, 180), filled_rect, border_radius=self.rect.h // 2
+        )
         # つまみ描画
         pygame.draw.circle(
             surface, (220, 220, 220), (handle_x, self.rect.centery), self.handle_radius

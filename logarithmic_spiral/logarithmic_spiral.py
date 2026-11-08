@@ -13,8 +13,6 @@ import math
 import pygame
 
 
-
-
 class ColorPalette:
     def __init__(self, x, y, label, colors, selected_idx=0):
         self.x = x
@@ -63,7 +61,9 @@ class ColorPalette:
             # 選択中の枠線ハイライト
             if i == self.selected_idx:
                 highlight_rect = rect.inflate(4, 4)
-                pygame.draw.rect(surface, (255, 255, 255), highlight_rect, 2, border_radius=5)
+                pygame.draw.rect(
+                    surface, (255, 255, 255), highlight_rect, 2, border_radius=5
+                )
             else:
                 pygame.draw.rect(surface, (70, 70, 70), rect, 1, border_radius=4)
 
@@ -209,6 +209,7 @@ def create_regular_polygon_points(n, center, radius=200, rotation=0.0):
 
     return points
 
+
 pygame.init()
 
 sim_width, sim_height = 500, 500
@@ -245,8 +246,12 @@ line_color = ["#00F0FF", "#FF2A6D", "#FF9E00", "#A0E7E5", "#E5C158"]
 bg_color_options = [tuple(pygame.Color(c)[:3]) for c in bg_color]
 line_color_options = [tuple(pygame.Color(c)[:3]) for c in line_color]
 
-palette_bg = ColorPalette(50, sim_height + 130, "BG Color", bg_color_options, selected_idx=0)
-palette_line = ColorPalette(50, sim_height + 165, "Line Color", line_color_options, selected_idx=0)
+palette_bg = ColorPalette(
+    50, sim_height + 130, "BG Color", bg_color_options, selected_idx=0
+)
+palette_line = ColorPalette(
+    50, sim_height + 165, "Line Color", line_color_options, selected_idx=0
+)
 palettes = [palette_bg, palette_line]
 
 
