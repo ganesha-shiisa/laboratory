@@ -78,12 +78,42 @@ class Slider:
         self.value = initial_val
         self.label = label
         self.is_int = is_int
-        self.step = step
+        self.step = step if step is not None else (1 if is_int else 0.01)
         self.dragging = False
         self.handle_radius = h // 2 + 3
+        self.btn_size = 20
+
+    @property
+    def btn_left_rect(self):
+        """左矢印ボタン (◀) の矩形"""
+        return pygame.Rect(
+            self.rect.x - self.btn_size - 6,
+            self.rect.centery - self.btn_size // 2,
+            self.btn_size,
+            self.btn_size,
+        )
+
+    @property
+    def btn_right_rect(self):
+        """右矢印ボタン (▶) の矩形"""
+        return pygame.Rect(
+            self.rect.right + 6,
+            self.rect.centery - self.btn_size // 2,
+            self.btn_size,
+            self.btn_size,
+        )
 
     def handle_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            # ◀ ボタンクリック
+            if self.btn_left_rect.collidepoint(event.pos):
+                self.change_step(-1)
+                return True
+            # ▶ ボタンクリック
+            elif self.btn_right_rect.collidepoint(event.pos):
+                self.change_step(1)
+                return True
+
             mouse_x, mouse_y = event.pos
             handle_x = self.rect.x + int(
                 (self.value - self.min_val)
@@ -107,6 +137,17 @@ class Slider:
             return True
         return False
 
+    def change_step(self, direction):
+        """1ステップ分値を増減させる"""
+        step = self.step
+        val = self.value + direction * step
+        val = max(self.min_val, min(self.max_val, val))
+        if self.is_int:
+            val = round(val)
+        else:
+            val = round(val / step) * step
+        self.value = val
+
     def _update_val(self, mouse_x):
         ratio = (mouse_x - self.rect.x) / self.rect.w
         ratio = max(0.0, min(1.0, ratio))
@@ -118,6 +159,24 @@ class Slider:
         self.value = val
 
     def draw(self, surface):
+        # ◀ ボタン描画
+        pygame.draw.rect(surface, (45, 45, 52), self.btn_left_rect, border_radius=4)
+        pygame.draw.rect(surface, (80, 80, 90), self.btn_left_rect, 1, border_radius=4)
+        t_left = font.render("<", True, (200, 200, 200))
+        surface.blit(
+            t_left,
+            t_left.get_rect(center=self.btn_left_rect.center),
+        )
+
+        # ▶ ボタン描画
+        pygame.draw.rect(surface, (45, 45, 52), self.btn_right_rect, border_radius=4)
+        pygame.draw.rect(surface, (80, 80, 90), self.btn_right_rect, 1, border_radius=4)
+        t_right = font.render(">", True, (200, 200, 200))
+        surface.blit(
+            t_right,
+            t_right.get_rect(center=self.btn_right_rect.center),
+        )
+
         # 背景バー
         pygame.draw.rect(
             surface, (60, 60, 60), self.rect, border_radius=self.rect.h // 2
@@ -144,88 +203,95 @@ class Slider:
         # ラベルと値の描画
         if self.is_int:
             val_str = f"{int(self.value)}"
+        elif self.step and self.step < 0.001:
+            val_str = f"{self.value:.6f}"
         else:
             val_str = f"{self.value:.2f}"
         text_surf = font.render(f"{self.label}: {val_str}", True, (220, 220, 220))
         surface.blit(text_surf, (self.rect.x, self.rect.y - 18))
 
 
-# def shift_point(point_a, point_b, gap):
-#     vec_a = pygame.math.Vector2(point_a)
-#     vec_b = pygame.math.Vector2(point_b)
-
-#     result_vec = vec_a + (vec_b - vec_a) * gap
-#     return (result_vec.x, result_vec.y)
-
-
-# def shift_points(points, gap):
-#     shifted_points = []
-#     for i in range(len(points)):
-#         point_a = points[i]
-#         point_b = points[(i + 1) % len(points)]
-#         shifted_point = shift_point(point_a, point_b, gap)
-#         shifted_points.append(shifted_point)
-#     return shifted_points
+PRESETS = [
+    {"label": "Golden Ratio", "value": 0.618033},
+    {"label": "Silver Ratio", "value": 0.414213},
+    {"label": "Rational 1/2", "value": 0.500000},
+    {"label": "Rational 1/3", "value": 0.333333},
+    {"label": "Fibonacci 3/8", "value": 0.375000},
+    {"label": "Fibonacci 5/13", "value": 0.384615},
+    {"label": "Warped 1/2", "value": 0.498000},
+]
 
 
-# def get_max_edge_length(points):
-#     """多角形の1辺の長さの最大値を返す"""
-#     if len(points) < 2:
-#         return 0.0
+class PresetButton:
+    def __init__(self, label, value):
+        self.label = label
+        self.value = value
+        self.rect = pygame.Rect(0, 0, 100, 24)
 
-#     max_length = 0.0
-#     for i in range(len(points)):
-#         p1 = pygame.math.Vector2(points[i])
-#         p2 = pygame.math.Vector2(points[(i + 1) % len(points)])
-#         edge_length = p1.distance_to(p2)
-#         if edge_length > max_length:
-#             max_length = edge_length
+    def handle_event(self, event, target_slider):
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if self.rect.collidepoint(event.pos):
+                target_slider.value = self.value
+                return True
+        return False
 
-#     return max_length
+    def draw(self, surface, font, is_active=False):
+        mouse_pos = pygame.mouse.get_pos()
+        is_hover = self.rect.collidepoint(mouse_pos)
 
+        if is_active:
+            bg_color = (60, 110, 170)
+            border_color = (130, 180, 240)
+            text_color = (255, 255, 255)
+        elif is_hover:
+            bg_color = (55, 55, 65)
+            border_color = (120, 120, 140)
+            text_color = (240, 240, 240)
+        else:
+            bg_color = (40, 40, 48)
+            border_color = (70, 70, 80)
+            text_color = (190, 190, 190)
 
-# def create_regular_polygon_points(n, center, radius=200, rotation=0.0):
-#     """
-#     正n角形（頂点数/角の数: n）の頂点座標リストを作成する
+        pygame.draw.rect(surface, bg_color, self.rect, border_radius=4)
+        pygame.draw.rect(surface, border_color, self.rect, 1, border_radius=4)
 
-#     :param n: 角の数（頂点数, 3以上の整数）
-#     :param center: 中心座標 (cx, cy)
-#     :param radius: 外接円の半径。デフォルトは 200
-#     :param rotation: 傾き・回転角度（ラジアン）。時計回りに回転。デフォルトは 0.0
-#     :return: 頂点座標のタプルのリスト [(x1, y1), (x2, y2), ...]
-#     """
-#     if n < 3:
-#         raise ValueError("角の数は3以上である必要があります。")
-
-#     cx, cy = center
-#     points = []
-
-#     # -pi/2 で真上（12時方向）から開始し、rotation 分傾ける
-#     for i in range(n):
-#         angle = -math.pi / 2 + rotation + 2 * math.pi * i / n
-#         x = cx + radius * math.cos(angle)
-#         y = cy + radius * math.sin(angle)
-#         points.append((x, y))
-
-#     return points
+        t_surf = font.render(self.label, True, text_color)
+        surface.blit(t_surf, t_surf.get_rect(center=self.rect.center))
 
 
 pygame.init()
 
 sim_width, sim_height = 1000, 1000
-ui_height = 205
+ui_height = 250
 width, height = sim_width, sim_height + ui_height
 screen = pygame.display.set_mode((width, height), pygame.RESIZABLE)
 pygame.display.set_caption("Logarithmic Spiral Visualization")
 
 font = pygame.font.SysFont("Consolas", 14)
+font_btn = pygame.font.SysFont("Consolas", 12)
 
-# スライダーの配置 (x, y, w, h, min, max, initial, label)
 # スライダーの配置
-slider_n = Slider(50, sim_height + 25, 330, 10, 3, 12, 4, "n (corners)", is_int=True)
-slider_r = Slider(50, sim_height + 65, 330, 10, 0, 360, 45, "rotation (deg)", step=1.0)
-slider_g = Slider(50, sim_height + 105, 330, 10, 0.02, 0.50, 0.20, "gap", step=0.000001)
-sliders = [slider_n, slider_r, slider_g]
+slider_r = Slider(50, sim_height, 330, 10, 0, 360, 0, "rotation (deg)", step=1.0)
+slider_g = Slider(
+    50,
+    sim_height,
+    330,
+    10,
+    0.0,
+    2.0,
+    (1 + math.sqrt(5)) / 2,
+    "gap",
+    step=0.0001,
+)
+sliders = [slider_r, slider_g]
+preset_buttons = [PresetButton(p["label"], p["value"]) for p in PRESETS]
+
+# アニメーション設定
+anim_playing = False
+last_anim_time = 0
+anim_interval_ms = 10  # 100msごとに1回更新
+anim_delta = 0.00001  # step (0.0001) より細かい変化量
+btn_anim = PresetButton("Play", None)
 
 # カラーパレットの候補色
 bg_color = ["#050505", "#0B0F19", "#1A0B2E", "#1E222A", "#000000"]
@@ -245,22 +311,35 @@ palettes = [palette_bg, palette_element]
 
 def update_ui_positions():
     """ウィンドウサイズ変更時に各UI要素の位置と幅を再計算する"""
-    slider_w = max(180, width - 180)
-
-    slider_n.rect.x = 130
-    slider_n.rect.y = sim_height + 25
-    slider_n.rect.w = slider_w
+    # 左右の矢印ボタン（各20px + マージン）分を考慮してスライダー幅を設定
+    slider_w = max(180, width - 210)
 
     slider_r.rect.x = 130
-    slider_r.rect.y = sim_height + 65
+    slider_r.rect.y = sim_height + 30
     slider_r.rect.w = slider_w
 
     slider_g.rect.x = 130
-    slider_g.rect.y = sim_height + 105
+    slider_g.rect.y = sim_height + 80
     slider_g.rect.w = slider_w
 
-    palette_bg.y = sim_height + 130
-    palette_element.y = sim_height + 165
+    # アニメーションボタン (slider_g のラベル横・右上等に配置)
+    btn_anim.rect = pygame.Rect(slider_g.rect.x + 130, slider_g.rect.y - 23, 75, 20)
+
+    # プリセットボタンの自動整列（折り返し配置）
+    btn_x = 50
+    btn_y = sim_height + 135
+    for btn in preset_buttons:
+        text_w, _ = font_btn.size(btn.label)
+        btn_w = max(90, text_w + 16)
+        if btn_x + btn_w > width - 30 and btn_x > 50:
+            btn_x = 50
+            btn_y += 30
+        btn.rect = pygame.Rect(btn_x, btn_y, btn_w, 24)
+        btn_x += btn_w + 8
+
+    palette_y_start = btn_y + 35
+    palette_bg.y = palette_y_start
+    palette_element.y = palette_y_start + 35
 
 
 def draw_fermat_spiral(surface, rot, center, radius, rotation, color):
@@ -279,6 +358,7 @@ def draw_fermat_spiral(surface, rot, center, radius, rotation, color):
 
 
 clock = pygame.time.Clock()
+update_ui_positions()
 running = True
 while running:
     for event in pygame.event.get():
@@ -294,8 +374,23 @@ while running:
             update_ui_positions()
         for s in sliders:
             s.handle_event(event)
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if btn_anim.rect.collidepoint(event.pos):
+                anim_playing = not anim_playing
+                btn_anim.label = "Pause" if anim_playing else "Play"
+        for btn in preset_buttons:
+            btn.handle_event(event, slider_g)
         for p in palettes:
             p.handle_event(event)
+
+    # アニメーション更新 (100msごとに anim_delta 分変化)
+    current_time = pygame.time.get_ticks()
+    if anim_playing and (current_time - last_anim_time >= anim_interval_ms):
+        last_anim_time = current_time
+        new_val = slider_g.value + anim_delta
+        if new_val > slider_g.max_val:
+            new_val = slider_g.min_val
+        slider_g.value = new_val
 
     bg_col = palette_bg.current_color
     element_col = palette_element.current_color
@@ -303,18 +398,15 @@ while running:
     screen.fill(bg_col)
 
     # パラメータ取得
-    n = int(slider_n.value)
     rotation_rad = math.radians(slider_r.value)
-    gap = slider_g.value
+    rot = slider_g.value
 
     # 上部描画領域（ウィンドウサイズに合わせて中心と半径を自動追従）
     screen.set_clip(pygame.Rect(0, 0, sim_width, sim_height))
     center = (sim_width / 2, sim_height / 2)
     radius = min(sim_width, sim_height) * 0.44  # 描画エリアの44%（余白を少し残す）
 
-    draw_fermat_spiral(
-        screen, (1 + math.sqrt(5)) / 2, center, radius, rotation_rad, element_col
-    )
+    draw_fermat_spiral(screen, rot, center, radius, rotation_rad, element_col)
 
     screen.set_clip(None)
 
@@ -325,6 +417,11 @@ while running:
 
     for s in sliders:
         s.draw(screen)
+    btn_anim.draw(screen, font_btn, is_active=anim_playing)
+    for btn in preset_buttons:
+        # 現在のslider_gの値と一致しているボタンをハイライト表示
+        is_active = abs(slider_g.value - btn.value) < 1e-5
+        btn.draw(screen, font_btn, is_active=is_active)
     for p in palettes:
         p.draw(screen)
 
