@@ -1,0 +1,576 @@
+<!--
+  フェルマー螺旋 ビジュアライザー
+  
+  参考文献 / 参考書籍:
+  『数学から創るジェネラティブアート ― Processingで学ぶかたちのデザイン』
+  著者: 巴山竜来 (技術評論社)
+  URL: https://gihyo.jp/book/2019/978-4-297-10463-4
+-->
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fermat Spiral Visualization</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        user-select: none;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Consolas", monospace, sans-serif;
+        background-color: #050505;
+        color: #dcdcdc;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        height: 100dvh;
+        overflow: hidden;
+      }
+
+      #canvas-container {
+        flex: 1;
+        width: 100%;
+        min-height: 0;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      #ui-panel {
+        background-color: #1e1e22;
+        border-top: 1px solid #33333d;
+        padding: 12px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        z-index: 10;
+        flex-shrink: 0;
+        max-height: 48vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .slider-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 8px 24px;
+      }
+
+      .ui-row {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .ui-header-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 13px;
+        font-family: "Consolas", monospace;
+      }
+
+      .ui-label-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .ui-val {
+        color: #70b0ff;
+        font-weight: 600;
+      }
+
+      .ui-slider-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+      }
+
+      .step-btn {
+        width: 26px;
+        height: 26px;
+        flex-shrink: 0;
+        background: #2a2a32;
+        border: 1px solid #4a4a58;
+        color: #dcdcdc;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 13px;
+        font-family: monospace;
+        transition: background 0.15s, border-color 0.15s, transform 0.05s;
+      }
+
+      .step-btn:hover {
+        background: #383844;
+        border-color: #70b0ff;
+      }
+
+      .step-btn:active {
+        transform: scale(0.92);
+      }
+
+      input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
+        flex: 1;
+        height: 8px;
+        border-radius: 4px;
+        background: #3c3c44;
+        outline: none;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #e0e0e0;
+        border: 2px solid #1e1e22;
+        cursor: pointer;
+        transition: transform 0.1s ease;
+      }
+
+      input[type="range"]::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #e0e0e0;
+        border: 2px solid #1e1e22;
+        cursor: pointer;
+      }
+
+      input[type="range"]::-webkit-slider-thumb:hover {
+        transform: scale(1.15);
+      }
+
+      .play-btn {
+        background: #2a2a32;
+        border: 1px solid #4a4a58;
+        color: #dcdcdc;
+        border-radius: 4px;
+        padding: 2px 10px;
+        font-size: 11px;
+        font-family: inherit;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        transition: all 0.15s ease;
+      }
+
+      .play-btn:hover {
+        background: #383844;
+        border-color: #70b0ff;
+      }
+
+      .play-btn.active {
+        background: #2563eb;
+        border-color: #60a5fa;
+        color: #ffffff;
+      }
+
+      .presets-container {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .presets-label {
+        font-size: 12px;
+        color: #9ca3af;
+        margin-right: 4px;
+        font-family: inherit;
+      }
+
+      .preset-btn {
+        background: #282830;
+        border: 1px solid #424250;
+        color: #c0c0c8;
+        border-radius: 4px;
+        padding: 4px 10px;
+        font-size: 11.5px;
+        font-family: inherit;
+        cursor: pointer;
+        transition: background 0.15s, border-color 0.15s, color 0.15s;
+      }
+
+      .preset-btn:hover {
+        background: #373744;
+        border-color: #5b5b6e;
+        color: #ffffff;
+      }
+
+      .preset-btn.active {
+        background: #1e3a8a;
+        border-color: #3b82f6;
+        color: #ffffff;
+        font-weight: 500;
+      }
+
+      .palettes-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        align-items: center;
+        padding-top: 2px;
+      }
+
+      .palette-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+        font-family: inherit;
+      }
+
+      .palette-options {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .color-swatch {
+        width: 20px;
+        height: 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        border: 1px solid #4a4a58;
+        box-sizing: border-box;
+        transition: transform 0.1s ease, border-color 0.1s ease;
+      }
+
+      .color-swatch:hover {
+        transform: scale(1.15);
+      }
+
+      .color-swatch.selected {
+        border: 2px solid #ffffff;
+        box-shadow: 0 0 5px rgba(255, 255, 255, 0.7);
+        transform: scale(1.15);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="canvas-container">
+      <canvas id="fermatCanvas"></canvas>
+    </div>
+
+    <div id="ui-panel">
+      <!-- スライダーエリア -->
+      <div class="slider-grid">
+        <!-- rotation (deg) -->
+        <div class="ui-row">
+          <div class="ui-header-row">
+            <span>rotation (deg)</span>
+            <span class="ui-val" id="val-rotation">45.00</span>
+          </div>
+          <div class="ui-slider-wrapper">
+            <button class="step-btn" id="btn-rot-dec">&lt;</button>
+            <input
+              type="range"
+              id="slider-rotation"
+              min="0"
+              max="360"
+              step="1"
+              value="45"
+            />
+            <button class="step-btn" id="btn-rot-inc">&gt;</button>
+          </div>
+        </div>
+
+        <!-- gap -->
+        <div class="ui-row">
+          <div class="ui-header-row">
+            <div class="ui-label-group">
+              <span>gap</span>
+              <button class="play-btn" id="btn-play">▶ Play</button>
+            </div>
+            <span class="ui-val" id="val-gap">1.6180</span>
+          </div>
+          <div class="ui-slider-wrapper">
+            <button class="step-btn" id="btn-gap-dec">&lt;</button>
+            <input
+              type="range"
+              id="slider-gap"
+              min="0.0"
+              max="2.0"
+              step="any"
+              value="1.6180339887"
+            />
+            <button class="step-btn" id="btn-gap-inc">&gt;</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- プリセットボタン -->
+      <div class="presets-container" id="presets-list">
+        <span class="presets-label">Presets:</span>
+      </div>
+
+      <!-- カラーパレット -->
+      <div class="palettes-row">
+        <div class="palette-group">
+          <span>BG Color:</span>
+          <div class="palette-options" id="palette-bg"></div>
+        </div>
+        <div class="palette-group">
+          <span>Element Color:</span>
+          <div class="palette-options" id="palette-element"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const PRESETS = [
+        { label: "Golden Ratio", value: 0.618033 },
+        { label: "Rational 1/2", value: 0.5 },
+        { label: "Rational 1/3", value: 0.333333 },
+        { label: "Fibonacci 3/8", value: 0.375 },
+        { label: "Fibonacci 5/13", value: 0.384615 },
+        { label: "Silver Ratio", value: 0.414213 },
+        { label: "Warped 1/2", value: 0.502 },
+      ];
+
+      const bgColors = ["#050505", "#0B0F19", "#1A0B2E", "#1E222A", "#000000"];
+      const lineColors = [
+        "#00F0FF",
+        "#FF2A6D",
+        "#FF9E00",
+        "#A0E7E5",
+        "#E5C158",
+      ];
+
+      let selectedBgIdx = 0;
+      let selectedElementIdx = 0;
+
+      const canvas = document.getElementById("fermatCanvas");
+      const ctx = canvas.getContext("2d");
+      const container = document.getElementById("canvas-container");
+
+      const sliderRotation = document.getElementById("slider-rotation");
+      const sliderGap = document.getElementById("slider-gap");
+      const valRotation = document.getElementById("val-rotation");
+      const valGap = document.getElementById("val-gap");
+
+      const btnRotDec = document.getElementById("btn-rot-dec");
+      const btnRotInc = document.getElementById("btn-rot-inc");
+      const btnGapDec = document.getElementById("btn-gap-dec");
+      const btnGapInc = document.getElementById("btn-gap-inc");
+      const btnPlay = document.getElementById("btn-play");
+
+      let isPlaying = false;
+      let lastAnimTime = 0;
+      const animIntervalMs = 100;
+      const animDelta = 0.00001;
+
+      let currentGap = 1.6180339887;
+      const GAP_STEP = 0.0001;
+
+      // プリセットボタンの動的生成
+      const presetsContainer = document.getElementById("presets-list");
+      const presetBtnEls = [];
+
+      PRESETS.forEach((preset) => {
+        const btn = document.createElement("button");
+        btn.className = "preset-btn";
+        btn.textContent = preset.label;
+        btn.addEventListener("click", () => {
+          currentGap = preset.value;
+          sliderGap.value = currentGap;
+          updateValues();
+        });
+        presetsContainer.appendChild(btn);
+        presetBtnEls.push({ btn, value: preset.value });
+      });
+
+      // パレット構築ヘルパー
+      function initPalette(containerId, colors, selectedIdx, onSelect) {
+        const pCont = document.getElementById(containerId);
+        colors.forEach((color, idx) => {
+          const swatch = document.createElement("div");
+          swatch.className =
+            "color-swatch" + (idx === selectedIdx ? " selected" : "");
+          swatch.style.backgroundColor = color;
+          swatch.addEventListener("click", () => {
+            Array.from(pCont.children).forEach((c) =>
+              c.classList.remove("selected")
+            );
+            swatch.classList.add("selected");
+            onSelect(idx);
+            draw();
+          });
+          pCont.appendChild(swatch);
+        });
+      }
+
+      initPalette("palette-bg", bgColors, selectedBgIdx, (idx) => {
+        selectedBgIdx = idx;
+      });
+      initPalette("palette-element", lineColors, selectedElementIdx, (idx) => {
+        selectedElementIdx = idx;
+      });
+
+      // スライダー値の表示更新 & プリセットアクティブ状態判定
+      function updateValues(fromInput = false) {
+        valRotation.textContent = parseFloat(sliderRotation.value).toFixed(2);
+        if (fromInput) {
+          currentGap = parseFloat(sliderGap.value);
+        } else {
+          sliderGap.value = currentGap;
+        }
+        valGap.textContent = currentGap.toFixed(6);
+
+        // プリセットの一致チェック
+        presetBtnEls.forEach(({ btn, value }) => {
+          if (Math.abs(currentGap - value) < 1e-5) {
+            btn.classList.add("active");
+          } else {
+            btn.classList.remove("active");
+          }
+        });
+
+        draw();
+      }
+
+      // ステップボタン操作
+      btnRotDec.addEventListener("click", () => {
+        sliderRotation.value = Math.max(
+          parseFloat(sliderRotation.min),
+          parseFloat(sliderRotation.value) - parseFloat(sliderRotation.step)
+        );
+        updateValues(false);
+      });
+
+      btnRotInc.addEventListener("click", () => {
+        sliderRotation.value = Math.min(
+          parseFloat(sliderRotation.max),
+          parseFloat(sliderRotation.value) + parseFloat(sliderRotation.step)
+        );
+        updateValues(false);
+      });
+
+      btnGapDec.addEventListener("click", () => {
+        currentGap = Math.max(
+          parseFloat(sliderGap.min),
+          currentGap - GAP_STEP
+        );
+        updateValues(false);
+      });
+
+      btnGapInc.addEventListener("click", () => {
+        currentGap = Math.min(
+          parseFloat(sliderGap.max),
+          currentGap + GAP_STEP
+        );
+        updateValues(false);
+      });
+
+      sliderRotation.addEventListener("input", () => updateValues(false));
+      sliderGap.addEventListener("input", () => updateValues(true));
+
+      // アニメーション再生制御
+      btnPlay.addEventListener("click", () => {
+        isPlaying = !isPlaying;
+        if (isPlaying) {
+          btnPlay.textContent = "⏸ Pause";
+          btnPlay.classList.add("active");
+          lastAnimTime = performance.now();
+        } else {
+          btnPlay.textContent = "▶ Play";
+          btnPlay.classList.remove("active");
+        }
+      });
+
+      function animationLoop(timestamp) {
+        if (isPlaying) {
+          if (timestamp - lastAnimTime >= animIntervalMs) {
+            lastAnimTime = timestamp;
+            currentGap += animDelta;
+            const maxVal = parseFloat(sliderGap.max);
+            const minVal = parseFloat(sliderGap.min);
+            if (currentGap > maxVal) {
+              currentGap = minVal;
+            }
+            updateValues(false);
+          }
+        }
+        requestAnimationFrame(animationLoop);
+      }
+      requestAnimationFrame(animationLoop);
+
+      // フェルマー螺旋の描画
+      function drawFermatSpiral(rot, center, radius, rotationRad, color) {
+        let itr = 0;
+        ctx.fillStyle = color;
+
+        while (true) {
+          itr++;
+          const theta = 2 * Math.PI * rot * itr;
+          const r = Math.sqrt(itr) * 10;
+          if (r > radius) {
+            break;
+          }
+          const x = center[0] + r * Math.cos(theta + rotationRad);
+          const y = center[1] + r * Math.sin(theta + rotationRad);
+
+          ctx.beginPath();
+          ctx.arc(x, y, 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      function draw() {
+        const rect = container.getBoundingClientRect();
+        const width = rect.width;
+        const height = rect.height;
+
+        ctx.fillStyle = bgColors[selectedBgIdx];
+        ctx.fillRect(0, 0, width, height);
+
+        const rot = parseFloat(sliderGap.value);
+        const rotationRad = (parseFloat(sliderRotation.value) * Math.PI) / 180.0;
+        const color = lineColors[selectedElementIdx];
+
+        const center = [width / 2, height / 2];
+        const radius = Math.min(width, height) * 0.44;
+
+        drawFermatSpiral(rot, center, radius, rotationRad, color);
+      }
+
+      function resizeCanvas() {
+        const rect = container.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = Math.round(rect.width * dpr);
+        canvas.height = Math.round(rect.height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        draw();
+      }
+
+      window.addEventListener("resize", resizeCanvas);
+
+      // 初期化実行
+      updateValues();
+      resizeCanvas();
+    </script>
+  </body>
+</html>
+
