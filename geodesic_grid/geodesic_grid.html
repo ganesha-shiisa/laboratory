@@ -1,0 +1,886 @@
+﻿<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Geodesic Grid Viewer</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+    <style>
+      :root {
+        color-scheme: light;
+        --border: #d6d6d6;
+        --panel-bg: #fafafa;
+        --accent: #1f5cc4;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family:
+          "Segoe UI", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+        background: #ffffff;
+        color: #1b1b1b;
+      }
+      #app {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      header {
+        padding: 12px 18px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+        background: #ffffff;
+      }
+      header h1 {
+        font-size: 18px;
+        margin: 0;
+        font-weight: 600;
+      }
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .controls button {
+        border: 1px solid var(--border);
+        background: #ffffff;
+        padding: 6px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+      }
+      .controls button.active {
+        border-color: var(--accent);
+        background: #eaf1ff;
+        color: #143c8f;
+        font-weight: 600;
+      }
+      .controls span {
+        font-size: 12px;
+        color: #555;
+        align-self: center;
+      }
+      .controls label {
+        font-size: 12px;
+        color: #333;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 4px;
+      }
+      .controls input[type=number] {
+        width: 56px;
+        padding: 4px 6px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 12px;
+      }
+      .controls button.recompute {
+        border-color: var(--accent);
+        background: #f3f7ff;
+        color: #143c8f;
+        font-weight: 600;
+      }
+      #content {
+        flex: 1;
+        display: flex;
+        flex-direction: row;
+        min-height: 0;
+      }
+      #viewer {
+        position: relative;
+        flex: 1;
+        min-height: 360px;
+        background: #ffffff;
+      }
+      #titleOverlay {
+        position: absolute;
+        top: 16px;
+        left: 16px;
+        padding: 8px 10px;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 12px;
+        white-space: pre-line;
+        pointer-events: none;
+      }
+      #logPanel {
+        width: 320px;
+        border-left: 1px solid var(--border);
+        background: var(--panel-bg);
+        padding: 12px;
+        overflow: auto;
+      }
+      #logPanel h2 {
+        font-size: 14px;
+        margin: 0 0 8px 0;
+      }
+      #logText {
+        font-size: 12px;
+        white-space: pre-wrap;
+        margin: 0;
+      }
+      #loading {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.9);
+        font-size: 14px;
+        color: #333;
+        z-index: 10;
+      }
+      canvas {
+        display: block;
+      }
+      @media (max-width: 900px) {
+        #content {
+          flex-direction: column;
+        }
+        #logPanel {
+          width: 100%;
+          border-left: none;
+          border-top: 1px solid var(--border);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <h1>Geodesic Grid Viewer</h1>
+        <div class="controls" id="controls">
+          <button data-step="1">Step 1</button>
+          <button data-step="2">Step 2</button>
+          <button data-step="3">Step 3</button>
+          <button data-step="4">Step 4</button>
+          <button data-step="5">Step 5</button>
+          <span>キーボード 1〜5 でも切替できます。</span>
+          <label>Subdivision
+            <input id="subdivisionInput" type="number" min="0" max="5" step="1" value="1" />
+          </label>
+          <button id="recomputeButton" class="recompute">再計算</button>
+        </div>
+      </header>
+      <div id="content">
+        <div id="viewer">
+          <div id="titleOverlay"></div>
+          <div id="loading">計算中です…</div>
+        </div>
+        <aside id="logPanel">
+          <h2>Python出力ログ</h2>
+          <pre id="logText"></pre>
+        </aside>
+      </div>
+    </div>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+      const SETTINGS = {
+        radius: 1.0,
+        subdivisionLevels: 1,
+        baseVertexCount: 12,
+      };
+
+      // ============================================================
+      // Data Computation (Pythonの処理ロジックを再現)
+      // ============================================================
+
+      function createIcosahedron(radius) {
+        const geometry = new THREE.IcosahedronGeometry(radius, 0);
+        const position = geometry.getAttribute("position").array;
+        const sourceIndices = geometry.index
+          ? Array.from(geometry.index.array)
+          : Array.from({ length: position.length / 3 }, (_, i) => i);
+
+        const vertices = [];
+        const indexMap = new Map();
+        const remapped = [];
+
+        const getKey = (x, y, z) =>
+          `${x.toFixed(6)}_${y.toFixed(6)}_${z.toFixed(6)}`;
+
+        sourceIndices.forEach((idx) => {
+          const x = position[idx * 3];
+          const y = position[idx * 3 + 1];
+          const z = position[idx * 3 + 2];
+          const key = getKey(x, y, z);
+
+          let newIndex = indexMap.get(key);
+          if (newIndex === undefined) {
+            newIndex = vertices.length;
+            vertices.push([x, y, z]);
+            indexMap.set(key, newIndex);
+          }
+          remapped.push(newIndex);
+        });
+
+        const triangles = [];
+        for (let i = 0; i < remapped.length; i += 3) {
+          triangles.push([remapped[i], remapped[i + 1], remapped[i + 2]]);
+        }
+
+        geometry.dispose();
+        return { vertices, triangles };
+      }
+
+      function subdivide(vertices, triangles, levels = 2) {
+        let currentVertices = vertices.map((v) => v.slice());
+        let currentTriangles = triangles.map((t) => t.slice());
+
+        for (let level = 0; level < levels; level += 1) {
+          const newVertices = currentVertices.map((v) => v.slice());
+          const midpointCache = new Map();
+
+          const getMidpointIndex = (i, j) => {
+            const a = Math.min(i, j);
+            const b = Math.max(i, j);
+            const key = `${a}_${b}`;
+            if (midpointCache.has(key)) {
+              return midpointCache.get(key);
+            }
+            const midpoint = [
+              (currentVertices[a][0] + currentVertices[b][0]) / 2,
+              (currentVertices[a][1] + currentVertices[b][1]) / 2,
+              (currentVertices[a][2] + currentVertices[b][2]) / 2,
+            ];
+            const index = newVertices.length;
+            newVertices.push(midpoint);
+            midpointCache.set(key, index);
+            return index;
+          };
+
+          const newTriangles = [];
+          for (const [a, b, c] of currentTriangles) {
+            const ab = getMidpointIndex(a, b);
+            const bc = getMidpointIndex(b, c);
+            const ca = getMidpointIndex(c, a);
+            newTriangles.push([a, ab, ca]);
+            newTriangles.push([b, bc, ab]);
+            newTriangles.push([c, ca, bc]);
+            newTriangles.push([ab, bc, ca]);
+          }
+
+          currentVertices = newVertices;
+          currentTriangles = newTriangles;
+        }
+
+        return { vertices: currentVertices, triangles: currentTriangles };
+      }
+
+      function projectToSphere(vertices, radius) {
+        return vertices.map((v) => normalizeToRadius(v, radius));
+      }
+
+      function calculateFaceCenters(vertices, triangles, radius) {
+        const centers = [];
+        for (const [a, b, c] of triangles) {
+          const center = [
+            (vertices[a][0] + vertices[b][0] + vertices[c][0]) / 3,
+            (vertices[a][1] + vertices[b][1] + vertices[c][1]) / 3,
+            (vertices[a][2] + vertices[b][2] + vertices[c][2]) / 3,
+          ];
+          centers.push(normalizeToRadius(center, radius));
+        }
+        return centers;
+      }
+
+      function buildVertexToFaces(triangles, vertexCount) {
+        const vertexToFaces = Array.from({ length: vertexCount }, () => []);
+        triangles.forEach(([a, b, c], faceId) => {
+          vertexToFaces[a].push(faceId);
+          vertexToFaces[b].push(faceId);
+          vertexToFaces[c].push(faceId);
+        });
+        return vertexToFaces;
+      }
+
+      function sortFaceCentersAroundVertex(
+        vertexPosition,
+        faceIds,
+        faceCenters,
+      ) {
+        const normal = normalizeVector(vertexPosition);
+
+        const reference = Math.abs(normal[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+        let tangentU = cross(reference, normal);
+        tangentU = normalizeVector(tangentU);
+        let tangentV = cross(normal, tangentU);
+        tangentV = normalizeVector(tangentV);
+
+        const faceAngles = faceIds.map((faceId) => {
+          const direction = [
+            faceCenters[faceId][0] - vertexPosition[0],
+            faceCenters[faceId][1] - vertexPosition[1],
+            faceCenters[faceId][2] - vertexPosition[2],
+          ];
+          const x = dot(direction, tangentU);
+          const y = dot(direction, tangentV);
+          const angle = Math.atan2(y, x);
+          return { angle, faceId };
+        });
+
+        faceAngles.sort((a, b) => a.angle - b.angle);
+        const orderedFaceIds = faceAngles.map((item) => item.faceId);
+
+        if (orderedFaceIds.length >= 3) {
+          const p0 = faceCenters[orderedFaceIds[0]];
+          const p1 = faceCenters[orderedFaceIds[1]];
+          const p2 = faceCenters[orderedFaceIds[2]];
+          const polygonNormal = cross(
+            [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]],
+            [p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2]],
+          );
+          if (dot(polygonNormal, normal) < 0) {
+            orderedFaceIds.reverse();
+          }
+        }
+
+        return orderedFaceIds;
+      }
+
+      function buildDualPolygons(vertices, triangles, faceCenters) {
+        const vertexToFaces = buildVertexToFaces(triangles, vertices.length);
+        const pentagons = [];
+        const hexagons = [];
+        const cells = [];
+        const warnings = [];
+
+        vertexToFaces.forEach((connectedFaces, vertexId) => {
+          const orderedFaces = sortFaceCentersAroundVertex(
+            vertices[vertexId],
+            connectedFaces,
+            faceCenters,
+          );
+          const sideCount = orderedFaces.length;
+          const cell = {
+            id: vertexId,
+            originalVertexId: vertexId,
+            faceCenterIndices: orderedFaces,
+            sideCount,
+            type: "unexpected",
+          };
+
+          if (sideCount === 5) {
+            cell.type = "pentagon";
+            pentagons.push(orderedFaces);
+          } else if (sideCount === 6) {
+            cell.type = "hexagon";
+            hexagons.push(orderedFaces);
+          } else {
+            warnings.push(`Warning: Cell ${vertexId} has ${sideCount} sides.`);
+          }
+          cells.push(cell);
+        });
+
+        return { pentagons, hexagons, cells, warnings };
+      }
+
+      function normalizeToRadius(vector, radius) {
+        const length = Math.hypot(vector[0], vector[1], vector[2]);
+        if (length === 0) {
+          throw new Error("Zero-length vector cannot be normalized.");
+        }
+        return [
+          (vector[0] / length) * radius,
+          (vector[1] / length) * radius,
+          (vector[2] / length) * radius,
+        ];
+      }
+
+      function normalizeVector(vector) {
+        const length = Math.hypot(vector[0], vector[1], vector[2]);
+        if (length === 0) {
+          return [0, 0, 0];
+        }
+        return [vector[0] / length, vector[1] / length, vector[2] / length];
+      }
+
+      function dot(a, b) {
+        return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+      }
+
+      function cross(a, b) {
+        return [
+          a[1] * b[2] - a[2] * b[1],
+          a[2] * b[0] - a[0] * b[2],
+          a[0] * b[1] - a[1] * b[0],
+        ];
+      }
+
+      function computeData() {
+        const base = createIcosahedron(SETTINGS.radius);
+        const subdivided = subdivide(
+          base.vertices,
+          base.triangles,
+          SETTINGS.subdivisionLevels,
+        );
+        const projectedVertices = projectToSphere(
+          subdivided.vertices,
+          SETTINGS.radius,
+        );
+        const faceCenters = calculateFaceCenters(
+          projectedVertices,
+          subdivided.triangles,
+          SETTINGS.radius,
+        );
+        const dual = buildDualPolygons(
+          projectedVertices,
+          subdivided.triangles,
+          faceCenters,
+        );
+
+        return {
+          baseVertices: base.vertices,
+          baseTriangles: base.triangles,
+          subdividedVertices: subdivided.vertices,
+          subdividedTriangles: subdivided.triangles,
+          projectedVertices,
+          faceCenters,
+          pentagons: dual.pentagons,
+          hexagons: dual.hexagons,
+          cells: dual.cells,
+          warnings: dual.warnings,
+        };
+      }
+
+      // ============================================================
+      // Rendering (Three.js)
+      // ============================================================
+
+      const viewer = document.getElementById("viewer");
+      const titleOverlay = document.getElementById("titleOverlay");
+      const logText = document.getElementById("logText");
+      const loading = document.getElementById("loading");
+      const controlButtons = Array.from(
+        document.querySelectorAll(".controls button[data-step]"),
+      );
+      const subdivisionInput = document.getElementById("subdivisionInput");
+      const recomputeButton = document.getElementById("recomputeButton");
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color("#ffffff");
+
+      const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
+      camera.position.set(2.6, 2.2, 2.6);
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setPixelRatio(window.devicePixelRatio ?? 1);
+      viewer.appendChild(renderer.domElement);
+
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      directionalLight.position.set(2, 3, 4);
+      scene.add(ambientLight, directionalLight);
+
+      const axesHelper = new THREE.AxesHelper(1.3);
+      scene.add(axesHelper);
+
+      const stepGroups = new Map();
+
+      function createTriangleGeometry(vertices, triangles) {
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(vertices.flat());
+        const indices = new Uint32Array(triangles.flat());
+        geometry.setAttribute(
+          "position",
+          new THREE.BufferAttribute(positions, 3),
+        );
+        geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+        geometry.computeVertexNormals();
+        return geometry;
+      }
+
+      function createMeshWithEdges(geometry, options) {
+        const material = new THREE.MeshLambertMaterial({
+          color: options.color,
+          opacity: options.opacity,
+          transparent: options.opacity < 1,
+          side: THREE.DoubleSide,
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+
+        const edges = new THREE.LineSegments(
+          new THREE.EdgesGeometry(geometry),
+          new THREE.LineBasicMaterial({
+            color: options.edgeColor,
+            opacity: 1,
+            transparent: false,
+          }),
+        );
+        const group = new THREE.Group();
+        group.add(mesh, edges);
+        return group;
+      }
+
+      function createPoints(vertices, color, size) {
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute(
+          "position",
+          new THREE.BufferAttribute(new Float32Array(vertices.flat()), 3),
+        );
+        const material = new THREE.PointsMaterial({
+          color,
+          size,
+          sizeAttenuation: true,
+        });
+        return new THREE.Points(geometry, material);
+      }
+
+      function createVertexPointsGroup(vertices) {
+        const group = new THREE.Group();
+        const baseVertices = vertices.slice(0, SETTINGS.baseVertexCount);
+        group.add(createPoints(baseVertices, "#d64040", 0.035));
+        if (vertices.length > SETTINGS.baseVertexCount) {
+          const extraVertices = vertices.slice(SETTINGS.baseVertexCount);
+          group.add(createPoints(extraVertices, "#f29938", 0.03));
+        }
+        return group;
+      }
+
+      function createPolygonGeometry(faceCenters, polygons) {
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(faceCenters.flat());
+        const indices = [];
+        polygons.forEach((polygon) => {
+          for (let i = 1; i < polygon.length - 1; i += 1) {
+            indices.push(polygon[0], polygon[i], polygon[i + 1]);
+          }
+        });
+        geometry.setAttribute(
+          "position",
+          new THREE.BufferAttribute(positions, 3),
+        );
+        geometry.setIndex(indices);
+        geometry.computeVertexNormals();
+        return geometry;
+      }
+
+      function createPolygonBoundaryLines(faceCenters, polygons, color) {
+        const segments = [];
+        polygons.forEach((polygon) => {
+          for (let i = 0; i < polygon.length; i += 1) {
+            const current = polygon[i];
+            const next = polygon[(i + 1) % polygon.length];
+            segments.push(
+              faceCenters[current][0],
+              faceCenters[current][1],
+              faceCenters[current][2],
+              faceCenters[next][0],
+              faceCenters[next][1],
+              faceCenters[next][2],
+            );
+          }
+        });
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute(
+          "position",
+          new THREE.BufferAttribute(new Float32Array(segments), 3),
+        );
+        const material = new THREE.LineBasicMaterial({ color });
+        return new THREE.LineSegments(geometry, material);
+      }
+
+      function createDualGroup(faceCenters, pentagons, hexagons, opacity) {
+        const group = new THREE.Group();
+        const pentGeometry = createPolygonGeometry(faceCenters, pentagons);
+        const hexGeometry = createPolygonGeometry(faceCenters, hexagons);
+
+        const pentMesh = new THREE.Mesh(
+          pentGeometry,
+          new THREE.MeshLambertMaterial({
+            color: "#f29938",
+            opacity,
+            transparent: opacity < 1,
+            side: THREE.DoubleSide,
+          }),
+        );
+
+        const hexMesh = new THREE.Mesh(
+          hexGeometry,
+          new THREE.MeshLambertMaterial({
+            color: "#9ec9ff",
+            opacity,
+            transparent: opacity < 1,
+            side: THREE.DoubleSide,
+          }),
+        );
+
+        const pentEdges = createPolygonBoundaryLines(
+          faceCenters,
+          pentagons,
+          "#000000",
+        );
+        const hexEdges = createPolygonBoundaryLines(
+          faceCenters,
+          hexagons,
+          "#000000",
+        );
+
+        group.add(pentMesh, hexMesh, pentEdges, hexEdges);
+        return group;
+      }
+      function buildLogText(data) {
+        const lines = [
+          "Step 1",
+          `  Vertices : ${data.baseVertices.length}`,
+          `  Faces    : ${data.baseTriangles.length}`,
+          "",
+          "Step 3 / 4",
+          `  Vertices : ${data.projectedVertices.length}`,
+          `  Faces    : ${data.subdividedTriangles.length}`,
+          "",
+          "Step 5 / 6",
+          `  Face Centers : ${data.faceCenters.length}`,
+          `  Cells        : ${data.cells.length}`,
+          `  Pentagons    : ${data.pentagons.length}`,
+          `  Hexagons     : ${data.hexagons.length}`,
+          `Vertices     : ${data.projectedVertices.length}`,
+          `Triangles    : ${data.subdividedTriangles.length}`,
+          `Face Centers : ${data.faceCenters.length}`,
+          `Cells        : ${data.cells.length}`,
+          `Pentagons    : ${data.pentagons.length}`,
+          `Hexagons     : ${data.hexagons.length}`,
+        ];
+
+        if (data.warnings.length) {
+          lines.push("", ...data.warnings);
+        }
+        return lines.join("\n");
+      }
+
+      function updateTitle(step, data) {
+        const titles = {
+          1: `Step 1 : Icosahedron\nVertices: ${data.baseVertices.length}\nFaces: ${data.baseTriangles.length}`,
+          2: `Step 2 : Subdivision\nVertices: ${data.subdividedVertices.length}\nFaces: ${data.subdividedTriangles.length}`,
+          3: `Step 3 : Spherical Projection\nVertices: ${data.projectedVertices.length}\nFaces: ${data.subdividedTriangles.length}`,
+          4: `Step 4 : Dualization\nFace Centers around each original vertex\nPentagons: ${data.pentagons.length}\nHexagons: ${data.hexagons.length}`,
+          5: `Step 5 : Dual Cell Sphere\nDual Vertices: ${data.faceCenters.length}\nPentagons: ${data.pentagons.length}\nHexagons: ${data.hexagons.length}\nCells: ${data.cells.length}`,
+        };
+        titleOverlay.textContent = titles[step] ?? "";
+      }
+
+      function setActiveStep(step, data) {
+        window.currentStep = step;
+        stepGroups.forEach((group, key) => {
+          group.visible = key === step;
+        });
+        updateTitle(step, data);
+        controlButtons.forEach((button) => {
+          button.classList.toggle(
+            "active",
+            Number(button.dataset.step) === step,
+          );
+        });
+      }
+
+      function resizeRenderer() {
+        const { clientWidth, clientHeight } = viewer;
+        camera.aspect = clientWidth / clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(clientWidth, clientHeight);
+      }
+
+      let animationStarted = false;
+
+      function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+      }
+
+      function disposeObject(object) {
+        object.traverse((child) => {
+          if (child.geometry) {
+            child.geometry.dispose();
+          }
+          if (child.material) {
+            if (Array.isArray(child.material)) {
+              child.material.forEach((material) => material.dispose());
+            } else {
+              child.material.dispose();
+            }
+          }
+        });
+      }
+
+      function clearSceneGroups() {
+        stepGroups.forEach((group) => {
+          scene.remove(group);
+          disposeObject(group);
+        });
+        stepGroups.clear();
+      }
+      function initializeScene(data, initialStep = 1) {
+        logText.textContent = buildLogText(data);
+
+        const baseGeometry = createTriangleGeometry(
+          data.baseVertices,
+          data.baseTriangles,
+        );
+        const subdividedGeometry = createTriangleGeometry(
+          data.subdividedVertices,
+          data.subdividedTriangles,
+        );
+        const projectedGeometry = createTriangleGeometry(
+          data.projectedVertices,
+          data.subdividedTriangles,
+        );
+
+        const step1 = new THREE.Group();
+        step1.add(
+          createMeshWithEdges(baseGeometry, {
+            color: "#9ec9ff",
+            opacity: 0.3,
+            edgeColor: "#000000",
+          }),
+        );
+        step1.add(createVertexPointsGroup(data.baseVertices));
+
+        const step2 = new THREE.Group();
+        step2.add(
+          createMeshWithEdges(subdividedGeometry, {
+            color: "#9ec9ff",
+            opacity: 0.3,
+            edgeColor: "#000000",
+          }),
+        );
+        step2.add(createVertexPointsGroup(data.subdividedVertices));
+
+        const step3 = new THREE.Group();
+        step3.add(
+          createMeshWithEdges(projectedGeometry, {
+            color: "#9ec9ff",
+            opacity: 0.3,
+            edgeColor: "#000000",
+          }),
+        );
+        step3.add(createVertexPointsGroup(data.projectedVertices));
+
+        const step4 = new THREE.Group();
+        step4.add(
+          createMeshWithEdges(projectedGeometry, {
+            color: "#d8d8d8",
+            opacity: 0.12,
+            edgeColor: "#8c8c8c",
+          }),
+        );
+        step4.add(createVertexPointsGroup(data.projectedVertices));
+        step4.add(
+          createDualGroup(data.faceCenters, data.pentagons, data.hexagons, 0.5),
+        );
+        step4.add(createPoints(data.faceCenters, "#2f73ff", 0.03));
+
+        const step5 = new THREE.Group();
+        step5.add(
+          createDualGroup(
+            data.faceCenters,
+            data.pentagons,
+            data.hexagons,
+            0.65,
+          ),
+        );
+        step5.add(createPoints(data.faceCenters, "#2f73ff", 0.03));
+
+        stepGroups.set(1, step1);
+        stepGroups.set(2, step2);
+        stepGroups.set(3, step3);
+        stepGroups.set(4, step4);
+        stepGroups.set(5, step5);
+        stepGroups.forEach((group) => scene.add(group));
+
+        setActiveStep(initialStep, data);
+        resizeRenderer();
+        if (!animationStarted) {
+          animationStarted = true;
+          animate();
+        }
+      }
+
+      function rebuildScene() {
+        loading.style.display = "block";
+        setTimeout(() => {
+          const data = computeData();
+          window.currentData = data;
+          clearSceneGroups();
+          initializeScene(data, window.currentStep ?? 1);
+          loading.style.display = "none";
+        }, 30);
+      }
+      function start() {
+        resizeRenderer();
+        window.addEventListener("resize", resizeRenderer);
+
+        subdivisionInput.value = SETTINGS.subdivisionLevels;
+
+        const applySubdivision = () => {
+          const rawValue = Number(subdivisionInput.value);
+          const safeValue = Number.isFinite(rawValue)
+            ? Math.max(0, Math.min(5, Math.round(rawValue)))
+            : SETTINGS.subdivisionLevels;
+          subdivisionInput.value = safeValue;
+          SETTINGS.subdivisionLevels = safeValue;
+          rebuildScene();
+        };
+
+        recomputeButton.addEventListener("click", applySubdivision);
+        subdivisionInput.addEventListener("change", applySubdivision);
+        subdivisionInput.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") {
+            applySubdivision();
+          }
+        });
+
+        controlButtons.forEach((button) => {
+          button.addEventListener("click", () => {
+            const step = Number(button.dataset.step);
+            setActiveStep(step, window.currentData);
+          });
+        });
+
+        window.addEventListener("keydown", (event) => {
+          const step = Number(event.key);
+          if (step >= 1 && step <= 5) {
+            setActiveStep(step, window.currentData);
+          }
+        });
+
+        rebuildScene();
+      }
+
+      start();
+    </script>
+  </body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
