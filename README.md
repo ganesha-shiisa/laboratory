@@ -12,6 +12,7 @@ laboratory/
 ├── euclidean_algorithm/       # ユークリッドの互除法による幾何分割
 ├── logarithmic_spiral/        # 正多角形による対数螺旋
 ├── fermat_spiral/             # フェルマー螺旋の可視化
+├── congruence/                # 合同算術の可視化
 └── README.md
 ```
 
@@ -22,7 +23,7 @@ laboratory/
 | `2026-11-06` | `Math`   | ユークリッドの互除法による幾何分割 | Python (Pygame), HTML5 Canvas, JS | 数学から創るジェネラティブアート, |
 | `2026-11-08` | `Math`   | 正多角形による対数螺旋             | Python (Pygame), HTML5 Canvas, JS | 数学から創るジェネラティブアート, |
 | `2026-11-10` | `Math`   | フェルマー螺旋の描画・比率検証     | Python (Pygame), HTML5 Canvas, JS | 数学から創るジェネラティブアート, |
-| `Plan`       | `Math`   | 合同                               |                                   | 数学から創るジェネラティブアート, |
+| `2026-11-13` | `Math`   | 合同算術の可視化                   | Python (Pygame), HTML5 Canvas, JS | 数学から創るジェネラティブアート, |
 | `Plan`       | `Math`   | セルオートマトン                   |                                   | 数学から創るジェネラティブアート, |
 | `Plan`       | `Math`   | 正六角形セルオートマトン           |                                   | 数学から創るジェネラティブアート, |
 | `Plan`       | `Math`   | 曲線                               |                                   | 数学から創るジェネラティブアート, |
@@ -43,4 +44,4 @@ laboratory/
   - 著者: 巴山竜来
   - 出版社: 技術評論社 (2019)
   - [書籍詳細 (gihyo.jp)](https://gihyo.jp/book/2019/978-4-297-10463-4)
-  - ※ `euclidean_algorithm`（幾何分割）、`logarithmic_spiral`（対数螺旋描画）、および `fermat_spiral`（フェルマー螺旋描画）のアルゴリズムの参考にしました。
+  - ※ `euclidean_algorithm`（幾何分割）、`logarithmic_spiral`（対数螺旋描画）、`fermat_spiral`（フェルマー螺旋描画）、および `congruence`（合同算術の可視化）のアルゴリズムの参考にしました。
