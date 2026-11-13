@@ -23,6 +23,7 @@ class ColorPalette:
         self.selected_idx = selected_idx
         self.box_size = 20
         self.gap = 8
+        self.label_width = 150
 
     @property
     def current_color(self):
@@ -30,7 +31,7 @@ class ColorPalette:
 
     def handle_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            start_x = self.x + 95
+            start_x = self.x + self.label_width
             for i, col in enumerate(self.colors):
                 rect = pygame.Rect(
                     start_x + i * (self.box_size + self.gap),
@@ -48,7 +49,7 @@ class ColorPalette:
         text_surf = font.render(f"{self.label}:", True, (220, 220, 220))
         surface.blit(text_surf, (self.x, self.y))
 
-        start_x = self.x + 95
+        start_x = self.x + self.label_width
         for i, col in enumerate(self.colors):
             rect = pygame.Rect(
                 start_x + i * (self.box_size + self.gap),
@@ -212,29 +213,24 @@ class Slider:
         surface.blit(text_surf, (self.rect.x, self.rect.y - 18))
 
 
-PRESETS = [
-    {"label": "Golden Ratio", "value": 0.618033},
-    {"label": "Silver Ratio", "value": 0.414213},
-    {"label": "Rational 1/2", "value": 0.500000},
-    {"label": "Rational 1/3", "value": 0.333333},
-    {"label": "Fibonacci 3/8", "value": 0.375000},
-    {"label": "Fibonacci 5/13", "value": 0.384615},
-    {"label": "Warped 1/2", "value": 0.498000},
+BUTTONS = [
+    {"label": "Addition", "value": 0},
+    {"label": "Multiplication", "value": 1},
+    {"label": "Power", "value": 2},
 ]
 
 
-class PresetButton:
+class Button:
     def __init__(self, label, value):
         self.label = label
         self.value = value
         self.rect = pygame.Rect(0, 0, 100, 24)
 
-    def handle_event(self, event, target_slider):
+    def handle_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self.rect.collidepoint(event.pos):
-                target_slider.value = self.value
-                return True
-        return False
+                return self.value
+        return None
 
     def draw(self, surface, font, is_active=False):
         mouse_pos = pygame.mouse.get_pos()
@@ -263,7 +259,7 @@ class PresetButton:
 pygame.init()
 
 sim_width, sim_height = 1000, 1000
-ui_height = 250
+ui_height = 200
 width, height = sim_width, sim_height + ui_height
 screen = pygame.display.set_mode((width, height), pygame.RESIZABLE)
 pygame.display.set_caption("Logarithmic Spiral Visualization")
@@ -272,27 +268,17 @@ font = pygame.font.SysFont("Consolas", 14)
 font_btn = pygame.font.SysFont("Consolas", 12)
 
 # スライダーの配置
-slider_r = Slider(50, sim_height, 330, 10, 0, 360, 0, "rotation (deg)", step=1.0)
-slider_g = Slider(
-    50,
-    sim_height,
-    330,
-    10,
-    0.0,
-    2.0,
-    (1 + math.sqrt(5)) / 2,
-    "gap",
-    step=0.0001,
-)
-sliders = [slider_r, slider_g]
-preset_buttons = [PresetButton(p["label"], p["value"]) for p in PRESETS]
+slider_mod = Slider(50, sim_height, 330, 10, 2, 40, 10, "MOD", step=1.0)
+sliders = [slider_mod]
+
+# ボタンの配置
+buttons = [Button(p["label"], p["value"]) for p in BUTTONS]
 
 # アニメーション設定
 anim_playing = False
 last_anim_time = 0
 anim_interval_ms = 10  # 100msごとに1回更新
 anim_delta = 0.00001  # step (0.0001) より細かい変化量
-btn_anim = PresetButton("Play", None)
 
 # カラーパレットの候補色
 bg_color = ["#050505", "#0B0F19", "#1A0B2E", "#1E222A", "#000000"]
@@ -302,10 +288,10 @@ bg_color_options = [tuple(pygame.Color(c)[:3]) for c in bg_color]
 line_color_options = [tuple(pygame.Color(c)[:3]) for c in line_color]
 
 palette_bg = ColorPalette(
-    50, sim_height + 130, "BG Color", bg_color_options, selected_idx=0
+    100, sim_height + 100, "BG Color", bg_color_options, selected_idx=2
 )
 palette_element = ColorPalette(
-    50, sim_height + 165, "Element Color", line_color_options, selected_idx=0
+    100, sim_height + 135, "Element Color", line_color_options, selected_idx=2
 )
 palettes = [palette_bg, palette_element]
 
@@ -315,40 +301,24 @@ def update_ui_positions():
     # 左右の矢印ボタン（各20px + マージン）分を考慮してスライダー幅を設定
     slider_w = max(180, width - 210)
 
-    slider_r.rect.x = 130
-    slider_r.rect.y = sim_height + 30
-    slider_r.rect.w = slider_w
+    slider_mod.rect.x = 130
+    slider_mod.rect.y = sim_height + 30
+    slider_mod.rect.w = slider_w
 
-    slider_g.rect.x = 130
-    slider_g.rect.y = sim_height + 80
-    slider_g.rect.w = slider_w
-
-    # アニメーションボタン (slider_g のラベル横・右上等に配置)
-    btn_anim.rect = pygame.Rect(slider_g.rect.x + 130, slider_g.rect.y - 23, 75, 20)
-
-    # プリセットボタンの自動整列（折り返し配置）
-    btn_x = 50
-    btn_y = sim_height + 135
-    for btn in preset_buttons:
+    # ボタンの自動整列（折り返し配置）
+    btn_x = 100
+    btn_y = sim_height + 65
+    for btn in buttons:
         text_w, _ = font_btn.size(btn.label)
         btn_w = max(90, text_w + 16)
-        if btn_x + btn_w > width - 30 and btn_x > 50:
-            btn_x = 50
+        if btn_x + btn_w > width - 30 and btn_x > 130:
+            btn_x = 130
             btn_y += 30
         btn.rect = pygame.Rect(btn_x, btn_y, btn_w, 24)
         btn_x += btn_w + 8
 
-    palette_y_start = btn_y + 35
-    palette_bg.y = palette_y_start
-    palette_element.y = palette_y_start + 35
-
-
-def addition_table(mod: int):
-    """合同の加法表を描画する"""
-
-    table = [[(i + j) % mod for j in range(mod)] for i in range(mod)]
-
-    return table
+    palette_bg.y = sim_height + 110
+    palette_element.y = sim_height + 145
 
 
 def addition_table(mod: int):
@@ -362,7 +332,7 @@ def addition_table(mod: int):
 def multiplication_table(mod: int):
     """合同の乗法表を描画する"""
 
-    table = [[(i * j) % mod for j in range(mod)] for i in range(mod)]
+    table = [[(i * j) % mod for j in range(1, mod)] for i in range(1, mod)]
 
     return table
 
@@ -370,23 +340,27 @@ def multiplication_table(mod: int):
 def power_table(mod: int):
     """合同の累乗表を描画する"""
 
-    table = [[(i**j) % mod for j in range(mod)] for i in range(mod)]
+    table = [[(i**j) % mod for j in range(mod)] for i in range(1, mod)]
 
     return table
 
 
-def draw_table(surface, mod, table):
+def draw_table(surface, mod, table, center, width, color):
+    rows = len(table)
+    cols = len(table[0]) if rows > 0 else 0
 
-    for i in range(mod):
-        for j in range(mod):
+    max_value = max(max(row) for row in table) if rows > 0 else 1
+
+    cell_size = width // max(rows, cols)
+    for i in range(rows):
+        for j in range(cols):
             val = table[i][j]
-            text_surf = font.render(str(val), True, (220, 220, 220))
-            cell_size = 30
-            x = 50 + j * cell_size
-            y = 50 + i * cell_size
-            pygame.draw.circle(surface, (25, 25, 25), (x, y), val * 5 + 5)
+            x = (center[0] - width // 2 + cell_size // 2) + j * cell_size
+            y = (center[1] - width // 2 + cell_size // 2) + i * cell_size
+            pygame.draw.circle(surface, color, (x, y), val * cell_size / max_value / 2)
 
 
+mode = 0  # 0: Addition, 1: Multiplication, 2: Power
 clock = pygame.time.Clock()
 update_ui_positions()
 running = True
@@ -404,12 +378,10 @@ while running:
             update_ui_positions()
         for s in sliders:
             s.handle_event(event)
-        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            if btn_anim.rect.collidepoint(event.pos):
-                anim_playing = not anim_playing
-                btn_anim.label = "Pause" if anim_playing else "Play"
-        for btn in preset_buttons:
-            btn.handle_event(event, slider_g)
+        for btn in buttons:
+            tmp = btn.handle_event(event)
+            if tmp is not None:
+                mode = tmp
         for p in palettes:
             p.handle_event(event)
 
@@ -417,10 +389,6 @@ while running:
     current_time = pygame.time.get_ticks()
     if anim_playing and (current_time - last_anim_time >= anim_interval_ms):
         last_anim_time = current_time
-        new_val = slider_g.value + anim_delta
-        if new_val > slider_g.max_val:
-            new_val = slider_g.min_val
-        slider_g.value = new_val
 
     bg_col = palette_bg.current_color
     element_col = palette_element.current_color
@@ -428,22 +396,21 @@ while running:
     screen.fill(bg_col)
 
     # パラメータ取得
-    rotation_rad = math.radians(slider_r.value)
-    rot = slider_g.value
+    mod = int(slider_mod.value)
 
     # 上部描画領域（ウィンドウサイズに合わせて中心と半径を自動追従）
     screen.set_clip(pygame.Rect(0, 0, sim_width, sim_height))
     center = (sim_width / 2, sim_height / 2)
-    radius = min(sim_width, sim_height) * 0.44  # 描画エリアの44%（余白を少し残す）
+    draw_width = min(sim_width, sim_height) * 0.9
 
-    # draw_fermat_spiral(screen, rot, center, radius, rotation_rad, element_col)
-    mod = 5
-    table = addition_table(mod)
-    # table2 = multiplication_table(mod)
-    # table3 = power_table(mod)
-    # print(table2)
-    # print(table3)
-    draw_table(screen, mod, table)
+    # 描画
+    if mode == 0:
+        table = addition_table(mod)
+    elif mode == 1:
+        table = multiplication_table(mod)
+    else:
+        table = power_table(mod)
+    draw_table(screen, mod, table, center, draw_width, element_col)
 
     screen.set_clip(None)
 
@@ -454,10 +421,9 @@ while running:
 
     for s in sliders:
         s.draw(screen)
-    btn_anim.draw(screen, font_btn, is_active=anim_playing)
-    for btn in preset_buttons:
+    for btn in buttons:
         # 現在のslider_gの値と一致しているボタンをハイライト表示
-        is_active = abs(slider_g.value - btn.value) < 1e-5
+        is_active = mode == btn.value
         btn.draw(screen, font_btn, is_active=is_active)
     for p in palettes:
         p.draw(screen)
