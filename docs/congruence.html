@@ -1,0 +1,516 @@
+<!--
+  合同可視化 (Congruence Visualizer)
+
+  参考文献 / 参考書籍:
+  『数学から創るジェネラティブアート ― Processingで学ぶかたちのデザイン』
+  著者: 巴山竜来 (技術評論社)
+  URL: https://gihyo.jp/book/2019/978-4-297-10463-4
+-->
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>合同可視化</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        user-select: none;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Consolas",
+          monospace, sans-serif;
+        background-color: #050505;
+        color: #dcdcdc;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        height: 100dvh;
+        overflow: hidden;
+      }
+
+      #canvas-container {
+        flex: 1;
+        width: 100%;
+        min-height: 0;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      #ui-panel {
+        background-color: #1e1e22;
+        border-top: 1px solid #33333d;
+        padding: 12px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        z-index: 10;
+        flex-shrink: 0;
+        max-height: 48vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      /* --- Slider --- */
+      .slider-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 8px 24px;
+      }
+
+      .ui-row {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .ui-header-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 13px;
+        font-family: "Consolas", monospace;
+      }
+
+      .ui-val {
+        color: #70b0ff;
+        font-weight: 600;
+      }
+
+      .ui-slider-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+      }
+
+      .step-btn {
+        width: 26px;
+        height: 26px;
+        flex-shrink: 0;
+        background: #2a2a32;
+        border: 1px solid #4a4a58;
+        color: #dcdcdc;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 13px;
+        font-family: monospace;
+        transition:
+          background 0.15s,
+          border-color 0.15s,
+          transform 0.05s;
+      }
+
+      .step-btn:hover {
+        background: #383844;
+        border-color: #70b0ff;
+      }
+
+      .step-btn:active {
+        transform: scale(0.92);
+      }
+
+      input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
+        flex: 1;
+        height: 8px;
+        border-radius: 4px;
+        background: #3c3c44;
+        outline: none;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #e0e0e0;
+        border: 2px solid #1e1e22;
+        cursor: pointer;
+        transition: transform 0.1s ease;
+      }
+
+      input[type="range"]::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #e0e0e0;
+        border: 2px solid #1e1e22;
+        cursor: pointer;
+      }
+
+      input[type="range"]::-webkit-slider-thumb:hover {
+        transform: scale(1.15);
+      }
+
+      /* --- Mode buttons --- */
+      .mode-container {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .mode-label {
+        font-size: 12px;
+        color: #9ca3af;
+        margin-right: 4px;
+        font-family: inherit;
+      }
+
+      .mode-btn {
+        background: #282830;
+        border: 1px solid #424250;
+        color: #c0c0c8;
+        border-radius: 4px;
+        padding: 4px 10px;
+        font-size: 11.5px;
+        font-family: inherit;
+        cursor: pointer;
+        transition:
+          background 0.15s,
+          border-color 0.15s,
+          color 0.15s;
+      }
+
+      .mode-btn:hover {
+        background: #373744;
+        border-color: #5b5b6e;
+        color: #ffffff;
+      }
+
+      .mode-btn.active {
+        background: #1e3a8a;
+        border-color: #3b82f6;
+        color: #ffffff;
+        font-weight: 500;
+      }
+
+      /* --- Color palettes --- */
+      .palettes-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        align-items: center;
+        padding-top: 2px;
+      }
+
+      .palette-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+        font-family: inherit;
+      }
+
+      .palette-options {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .color-swatch {
+        width: 20px;
+        height: 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        border: 1px solid #4a4a58;
+        box-sizing: border-box;
+        transition:
+          transform 0.1s ease,
+          border-color 0.1s ease;
+      }
+
+      .color-swatch:hover {
+        transform: scale(1.15);
+      }
+
+      .color-swatch.selected {
+        border: 2px solid #ffffff;
+        box-shadow: 0 0 5px rgba(255, 255, 255, 0.7);
+        transform: scale(1.15);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="canvas-container">
+      <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <div id="ui-panel">
+      <!-- MOD スライダー -->
+      <div class="slider-grid">
+        <div class="ui-row">
+          <div class="ui-header-row">
+            <span>MOD</span>
+            <span class="ui-val" id="val-mod">10</span>
+          </div>
+          <div class="ui-slider-wrapper">
+            <button class="step-btn" id="btn-mod-dec">&lt;</button>
+            <input
+              type="range"
+              id="slider-mod"
+              min="2"
+              max="40"
+              step="1"
+              value="10"
+            />
+            <button class="step-btn" id="btn-mod-inc">&gt;</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- モード切替ボタン -->
+      <div class="mode-container" id="mode-list">
+        <span class="mode-label">Mode:</span>
+      </div>
+
+      <!-- カラーパレット -->
+      <div class="palettes-row">
+        <div class="palette-group">
+          <span>BG Color:</span>
+          <div class="palette-options" id="palette-bg"></div>
+        </div>
+        <div class="palette-group">
+          <span>Element Color:</span>
+          <div class="palette-options" id="palette-element"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // =========================================================
+      //  State
+      // =========================================================
+      let mod = 10;
+      let mode = 0; // 0: Addition, 1: Multiplication, 2: Power
+
+      const bgColorOptions = [
+        "#050505",
+        "#0B0F19",
+        "#1A0B2E",
+        "#1E222A",
+        "#000000",
+      ];
+      const elementColorOptions = [
+        "#00F0FF",
+        "#FF2A6D",
+        "#FF9E00",
+        "#A0E7E5",
+        "#E5C158",
+      ];
+      let bgColor = bgColorOptions[2];
+      let elementColor = elementColorOptions[2];
+
+      // =========================================================
+      //  Canvas setup
+      // =========================================================
+      const canvas = document.getElementById("mainCanvas");
+      const ctx = canvas.getContext("2d");
+      const container = document.getElementById("canvas-container");
+
+      function resizeCanvas() {
+        const w = container.clientWidth;
+        const h = container.clientHeight;
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        redraw();
+      }
+
+      window.addEventListener("resize", resizeCanvas);
+
+      // =========================================================
+      //  Core Logic (ported from Python)
+      // =========================================================
+      function additionTable(mod) {
+        const table = [];
+        for (let i = 0; i < mod; i++) {
+          const row = [];
+          for (let j = 0; j < mod; j++) row.push((i + j) % mod);
+          table.push(row);
+        }
+        return table;
+      }
+
+      function multiplicationTable(mod) {
+        const table = [];
+        for (let i = 1; i < mod; i++) {
+          const row = [];
+          for (let j = 1; j < mod; j++) row.push((i * j) % mod);
+          table.push(row);
+        }
+        return table;
+      }
+
+      function powerTable(mod) {
+        const table = [];
+        for (let i = 1; i < mod; i++) {
+          const row = [];
+          for (let j = 0; j < mod; j++) {
+            // Use BigInt for accuracy with large exponents
+            row.push(Number(BigInt(i) ** BigInt(j) % BigInt(mod)));
+          }
+          table.push(row);
+        }
+        return table;
+      }
+
+      function createTable(mod, mode) {
+        if (mode === 0) return additionTable(mod);
+        if (mode === 1) return multiplicationTable(mod);
+        return powerTable(mod);
+      }
+
+      function drawTable(ctx, table, centerX, centerY, drawWidth, color) {
+        const rows = table.length;
+        const cols = rows > 0 ? table[0].length : 0;
+        if (rows === 0 || cols === 0) return;
+
+        const maxVal = Math.max(...table.flat());
+        if (maxVal === 0) return;
+
+        const cellSize = drawWidth / Math.max(rows, cols);
+        ctx.fillStyle = color;
+
+        for (let i = 0; i < rows; i++) {
+          for (let j = 0; j < cols; j++) {
+            const val = table[i][j];
+            const x = centerX - drawWidth / 2 + cellSize / 2 + j * cellSize;
+            const y = centerY - drawWidth / 2 + cellSize / 2 + i * cellSize;
+            const radius = (val * cellSize) / maxVal / 2;
+            if (radius > 0) {
+              ctx.beginPath();
+              ctx.arc(x, y, radius, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+        }
+      }
+
+      // =========================================================
+      //  Redraw
+      // =========================================================
+      function redraw() {
+        const w = container.clientWidth;
+        const h = container.clientHeight;
+
+        // Background
+        ctx.fillStyle = bgColor;
+        ctx.fillRect(0, 0, w, h);
+
+        // Table
+        const table = createTable(mod, mode);
+        const drawWidth = Math.min(w, h) * 0.9;
+        drawTable(ctx, table, w / 2, h / 2, drawWidth, elementColor);
+      }
+
+      // =========================================================
+      //  UI: MOD slider
+      // =========================================================
+      const sliderMod = document.getElementById("slider-mod");
+      const valMod = document.getElementById("val-mod");
+
+      function setMod(v) {
+        v = Math.max(2, Math.min(40, Math.round(v)));
+        mod = v;
+        sliderMod.value = v;
+        valMod.textContent = v;
+        redraw();
+      }
+
+      sliderMod.addEventListener("input", () =>
+        setMod(Number(sliderMod.value)),
+      );
+      document
+        .getElementById("btn-mod-dec")
+        .addEventListener("click", () => setMod(mod - 1));
+      document
+        .getElementById("btn-mod-inc")
+        .addEventListener("click", () => setMod(mod + 1));
+
+      // =========================================================
+      //  UI: Mode buttons
+      // =========================================================
+      const MODES = [
+        { label: "Addition", value: 0 },
+        { label: "Multiplication", value: 1 },
+        { label: "Power", value: 2 },
+      ];
+
+      const modeList = document.getElementById("mode-list");
+
+      MODES.forEach((m) => {
+        const btn = document.createElement("button");
+        btn.className = "mode-btn" + (m.value === mode ? " active" : "");
+        btn.textContent = m.label;
+        btn.dataset.value = m.value;
+        btn.addEventListener("click", () => {
+          mode = m.value;
+          modeList
+            .querySelectorAll(".mode-btn")
+            .forEach((b) =>
+              b.classList.toggle("active", Number(b.dataset.value) === mode),
+            );
+          redraw();
+        });
+        modeList.appendChild(btn);
+      });
+
+      // =========================================================
+      //  UI: Color palettes
+      // =========================================================
+      function buildPalette(containerId, colors, selectedIdx, onChange) {
+        const container = document.getElementById(containerId);
+        colors.forEach((hex, i) => {
+          const swatch = document.createElement("div");
+          swatch.className =
+            "color-swatch" + (i === selectedIdx ? " selected" : "");
+          swatch.style.backgroundColor = hex;
+          swatch.addEventListener("click", () => {
+            container
+              .querySelectorAll(".color-swatch")
+              .forEach((s) => s.classList.remove("selected"));
+            swatch.classList.add("selected");
+            onChange(hex);
+          });
+          container.appendChild(swatch);
+        });
+      }
+
+      buildPalette("palette-bg", bgColorOptions, 2, (c) => {
+        bgColor = c;
+        redraw();
+      });
+
+      buildPalette("palette-element", elementColorOptions, 2, (c) => {
+        elementColor = c;
+        redraw();
+      });
+
+      // =========================================================
+      //  Initial draw
+      // =========================================================
+      resizeCanvas();
+    </script>
+  </body>
+</html>
