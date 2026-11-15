@@ -359,18 +359,32 @@ def draw_cells(surface, cells, center, width, color):
     rows = len(cells)
     cols = len(cells[0]) if rows > 0 else 0
 
-    max_value = max(max(row) for row in cells) if rows > 0 else 1
+    if rows == 0 or cols == 0:
+        return
+
+    max_value = max(max(row) for row in cells)
     if max_value < 1:
         max_value = 1
 
     cell_size = width / max(rows, cols)
 
+    # 描画の基準となる左上のオフセットを計算
+    start_x = center[0] - width // 2
+    start_y = center[1] - width // 2
+
     for i in range(rows):
         for j in range(cols):
             val = cells[i][j]
-            x = (center[0] - width // 2 + cell_size // 2) + j * cell_size
-            y = (center[1] - width // 2 + cell_size // 2) + i * cell_size
-            pygame.draw.circle(surface, color, (x, y), val * cell_size / max_value / 2)
+            # 値が0なら描画をスキップしてパフォーマンスを稼ぐ！
+            if val <= 0:
+                continue
+
+            x = int(start_x + cell_size / 2 + j * cell_size)
+            y = int(start_y + cell_size / 2 + i * cell_size)
+            radius = int(val * cell_size / max_value / 2)
+
+            if radius > 0:
+                pygame.draw.circle(surface, color, (x, y), radius)
 
 
 cellular_automaton = CellularAutomaton(101, 4)
