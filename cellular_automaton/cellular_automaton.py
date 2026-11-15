@@ -105,7 +105,7 @@ class Slider:
             self.btn_size,
         )
 
-    def handle_event(self, event):
+    def handle_event(self, event) -> bool:
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             # ◀ ボタンクリック
             if self.btn_left_rect.collidepoint(event.pos):
@@ -268,11 +268,12 @@ font = pygame.font.SysFont("Consolas", 14)
 font_btn = pygame.font.SysFont("Consolas", 12)
 
 # スライダーの配置
-slider_mod = Slider(50, sim_height, 330, 10, 2, 40, 10, "MOD", step=1.0)
-sliders = [slider_mod]
+slider_num = Slider(50, sim_height, 330, 10, 2, 200, 100, "Num", step=1.0)
+slider_mod = Slider(50, sim_height + 30, 330, 10, 2, 40, 10, "MOD", step=1.0)
+sliders = [slider_num, slider_mod]
 
 # ボタンの配置
-buttons = [Button(p["label"], p["value"]) for p in BUTTONS]
+# buttons = [Button(p["label"], p["value"]) for p in BUTTONS]
 
 # アニメーション設定
 anim_playing = False
@@ -288,10 +289,10 @@ bg_color_options = [tuple(pygame.Color(c)[:3]) for c in bg_color]
 line_color_options = [tuple(pygame.Color(c)[:3]) for c in line_color]
 
 palette_bg = ColorPalette(
-    100, sim_height + 100, "BG Color", bg_color_options, selected_idx=2
+    100, sim_height + 100, "BG Color", bg_color_options, selected_idx=1
 )
 palette_element = ColorPalette(
-    100, sim_height + 135, "Element Color", line_color_options, selected_idx=2
+    100, sim_height + 135, "Element Color", line_color_options, selected_idx=4
 )
 palettes = [palette_bg, palette_element]
 
@@ -301,24 +302,28 @@ def update_ui_positions():
     # 左右の矢印ボタン（各20px + マージン）分を考慮してスライダー幅を設定
     slider_w = max(180, width - 210)
 
+    slider_num.rect.x = 130
+    slider_num.rect.y = sim_height + 30
+    slider_num.rect.w = slider_w
+
     slider_mod.rect.x = 130
-    slider_mod.rect.y = sim_height + 30
+    slider_mod.rect.y = sim_height + 70
     slider_mod.rect.w = slider_w
 
-    # ボタンの自動整列（折り返し配置）
-    btn_x = 100
-    btn_y = sim_height + 65
-    for btn in buttons:
-        text_w, _ = font_btn.size(btn.label)
-        btn_w = max(90, text_w + 16)
-        if btn_x + btn_w > width - 30 and btn_x > 130:
-            btn_x = 130
-            btn_y += 30
-        btn.rect = pygame.Rect(btn_x, btn_y, btn_w, 24)
-        btn_x += btn_w + 8
+    # # ボタンの自動整列（折り返し配置）
+    # btn_x = 100
+    # btn_y = sim_height + 105
+    # for btn in buttons:
+    #     text_w, _ = font_btn.size(btn.label)
+    #     btn_w = max(90, text_w + 16)
+    #     if btn_x + btn_w > width - 30 and btn_x > 130:
+    #         btn_x = 130
+    #         btn_y += 30
+    #     btn.rect = pygame.Rect(btn_x, btn_y, btn_w, 24)
+    #     btn_x += btn_w + 8
 
-    palette_bg.y = sim_height + 110
-    palette_element.y = sim_height + 145
+    palette_bg.y = sim_height + 120
+    palette_element.y = sim_height + 155
 
 
 class CellularAutomaton:
@@ -387,11 +392,14 @@ while running:
             screen = pygame.display.set_mode((width, height), pygame.RESIZABLE)
             update_ui_positions()
         for s in sliders:
-            s.handle_event(event)
-        for btn in buttons:
-            tmp = btn.handle_event(event)
-            if tmp is not None:
-                mode = tmp
+            if s.handle_event(event):
+                num = int(slider_num.value)
+                mod = int(slider_mod.value)
+                cellular_automaton = CellularAutomaton(num, mod)
+        # for btn in buttons:
+        #     tmp = btn.handle_event(event)
+        #     if tmp is not None:
+        #         mode = tmp
         for p in palettes:
             p.handle_event(event)
 
@@ -428,10 +436,10 @@ while running:
 
     for s in sliders:
         s.draw(screen)
-    for btn in buttons:
-        # 現在のslider_gの値と一致しているボタンをハイライト表示
-        is_active = mode == btn.value
-        btn.draw(screen, font_btn, is_active=is_active)
+    # for btn in buttons:
+    #     # 現在のslider_gの値と一致しているボタンをハイライト表示
+    #     is_active = mode == btn.value
+    #     btn.draw(screen, font_btn, is_active=is_active)
     for p in palettes:
         p.draw(screen)
 
