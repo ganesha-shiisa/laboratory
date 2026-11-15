@@ -355,16 +355,12 @@ class CellularAutomaton:
         return total % self.mod
 
 
-def draw_cells(surface, cells, center, width, color):
+def draw_cells(surface, cells, mod, center, width, color):
     rows = len(cells)
     cols = len(cells[0]) if rows > 0 else 0
 
     if rows == 0 or cols == 0:
         return
-
-    max_value = max(max(row) for row in cells)
-    if max_value < 1:
-        max_value = 1
 
     cell_size = width / max(rows, cols)
 
@@ -381,13 +377,15 @@ def draw_cells(surface, cells, center, width, color):
 
             x = int(start_x + cell_size / 2 + j * cell_size)
             y = int(start_y + cell_size / 2 + i * cell_size)
-            radius = int(val * cell_size / max_value / 2)
+            radius = int(val * cell_size / mod / 2)
 
             if radius > 0:
                 pygame.draw.circle(surface, color, (x, y), radius)
 
 
-cellular_automaton = CellularAutomaton(101, 4)
+num = int(slider_num.value)
+mod = int(slider_mod.value)
+cellular_automaton = CellularAutomaton(num, mod)
 last_step_time = 0
 mode = 0  # 0: Addition, 1: Multiplication, 2: Power
 clock = pygame.time.Clock()
@@ -439,7 +437,7 @@ while running:
     if current_time - last_step_time >= 300:
         cellular_automaton.update_state()
         last_step_time = current_time
-    draw_cells(screen, cellular_automaton.cells, center, draw_width, element_col)
+    draw_cells(screen, cellular_automaton.cells, mod, center, draw_width, element_col)
 
     screen.set_clip(None)
 

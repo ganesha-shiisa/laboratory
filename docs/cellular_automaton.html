@@ -421,22 +421,12 @@
 
       let ca = new CellularAutomaton(num, mod);
 
-      function drawCells(ctx, cells, center, width, color) {
+      function drawCells(ctx, cells, mod, center, width, color) {
         const rows = cells.length;
         const cols = rows > 0 ? cells[0].length : 0;
 
         if (rows === 0 || cols === 0) {
           return;
-        }
-
-        // 2次元配列の中から最大値を見つける（Pythonの max(max(row)...) に相当）
-        let maxValue = 1;
-        for (let i = 0; i < rows; i++) {
-          for (let j = 0; j < cols; j++) {
-            if (cells[i][j] > maxValue) {
-              maxValue = cells[i][j];
-            }
-          }
         }
 
         const cellSize = width / Math.max(rows, cols);
@@ -458,7 +448,7 @@
 
             const x = Math.floor(startX + cellSize / 2 + j * cellSize);
             const y = Math.floor(startY + cellSize / 2 + i * cellSize);
-            const radius = Math.floor((val * cellSize) / maxValue / 2);
+            const radius = Math.floor((val * cellSize) / mod / 2);
 
             if (radius > 0) {
               ctx.beginPath();
@@ -484,7 +474,7 @@
         // Table
         ca.update_state();
         const drawWidth = Math.min(w, h) * 0.9;
-        drawCells(ctx, ca.cells, [w / 2, h / 2], drawWidth, elementColor);
+        drawCells(ctx, ca.cells, mod, [w / 2, h / 2], drawWidth, elementColor);
       }
 
       // =========================================================
