@@ -1,0 +1,884 @@
+<!--
+  六角形セル・オートマトン ビジュアライザー (Hexagonal Cellular Automaton)
+
+  参考文献 / 参考書籍:
+  『数学から創るジェネラティブアート ― Processingで学ぶかたちのデザイン』
+  著者: 巴山竜来 (技術評論社)
+  URL: https://gihyo.jp/book/2019/978-4-297-10463-4
+-->
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>六角形セル・オートマトン</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        user-select: none;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Consolas",
+          monospace, sans-serif;
+        background-color: #050505;
+        color: #dcdcdc;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        height: 100dvh;
+        overflow: hidden;
+      }
+
+      #canvas-container {
+        flex: 1;
+        width: 100%;
+        min-height: 0;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      #ui-panel {
+        background-color: #1e1e22;
+        border-top: 1px solid #33333d;
+        padding: 12px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        z-index: 10;
+        flex-shrink: 0;
+        max-height: 48vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      /* --- Slider Grid --- */
+      .slider-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 8px 24px;
+      }
+
+      .ui-row {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .ui-header-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 13px;
+        font-family: "Consolas", monospace;
+      }
+
+      .ui-label-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .ui-val {
+        color: #70b0ff;
+        font-weight: 600;
+      }
+
+      .ui-slider-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+      }
+
+      .step-btn {
+        width: 26px;
+        height: 26px;
+        flex-shrink: 0;
+        background: #2a2a32;
+        border: 1px solid #4a4a58;
+        color: #dcdcdc;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 13px;
+        font-family: monospace;
+        transition:
+          background 0.15s,
+          border-color 0.15s,
+          transform 0.05s;
+      }
+
+      .step-btn:hover {
+        background: #383844;
+        border-color: #70b0ff;
+      }
+
+      .step-btn:active {
+        transform: scale(0.92);
+      }
+
+      input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
+        flex: 1;
+        height: 8px;
+        border-radius: 4px;
+        background: #3c3c44;
+        outline: none;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #e0e0e0;
+        border: 2px solid #1e1e22;
+        cursor: pointer;
+        transition: transform 0.1s ease;
+      }
+
+      input[type="range"]::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #e0e0e0;
+        border: 2px solid #1e1e22;
+        cursor: pointer;
+      }
+
+      input[type="range"]::-webkit-slider-thumb:hover {
+        transform: scale(1.15);
+      }
+
+      /* --- Action / Control Buttons --- */
+      .action-btn {
+        background: #2a2a32;
+        border: 1px solid #4a4a58;
+        color: #dcdcdc;
+        border-radius: 4px;
+        padding: 3px 10px;
+        font-size: 11.5px;
+        font-family: inherit;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition: all 0.15s ease;
+      }
+
+      .action-btn:hover {
+        background: #383844;
+        border-color: #70b0ff;
+      }
+
+      .action-btn.active {
+        background: #2563eb;
+        border-color: #60a5fa;
+        color: #ffffff;
+      }
+
+      /* --- Colormap Buttons --- */
+      .mode-container {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .mode-label {
+        font-size: 12px;
+        color: #9ca3af;
+        margin-right: 4px;
+        font-family: inherit;
+      }
+
+      .mode-btn {
+        background: #282830;
+        border: 1px solid #424250;
+        color: #c0c0c8;
+        border-radius: 4px;
+        padding: 4px 10px;
+        font-size: 11.5px;
+        font-family: inherit;
+        cursor: pointer;
+        transition:
+          background 0.15s,
+          border-color 0.15s,
+          color 0.15s;
+      }
+
+      .mode-btn:hover {
+        background: #373744;
+        border-color: #5b5b6e;
+        color: #ffffff;
+      }
+
+      .mode-btn.active {
+        background: #1e3a8a;
+        border-color: #3b82f6;
+        color: #ffffff;
+        font-weight: 500;
+      }
+
+      /* --- Color palettes --- */
+      .palettes-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        align-items: center;
+        padding-top: 2px;
+      }
+
+      .palette-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+        font-family: inherit;
+      }
+
+      .palette-options {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .color-swatch {
+        width: 20px;
+        height: 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        border: 1px solid #4a4a58;
+        box-sizing: border-box;
+        transition:
+          transform 0.1s ease,
+          border-color 0.1s ease;
+      }
+
+      .color-swatch:hover {
+        transform: scale(1.15);
+      }
+
+      .color-swatch.selected {
+        border: 2px solid #ffffff;
+        box-shadow: 0 0 5px rgba(255, 255, 255, 0.7);
+        transform: scale(1.15);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="canvas-container">
+      <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <div id="ui-panel">
+      <!-- スライダー & 制御 -->
+      <div class="slider-grid">
+        <!-- NUM -->
+        <div class="ui-row">
+          <div class="ui-header-row">
+            <span>Num</span>
+            <span class="ui-val" id="val-num">100</span>
+          </div>
+          <div class="ui-slider-wrapper">
+            <button class="step-btn" id="btn-num-dec">&lt;</button>
+            <input
+              type="range"
+              id="slider-num"
+              min="2"
+              max="200"
+              step="1"
+              value="100"
+            />
+            <button class="step-btn" id="btn-num-inc">&gt;</button>
+          </div>
+        </div>
+
+        <!-- MOD -->
+        <div class="ui-row">
+          <div class="ui-header-row">
+            <span>MOD</span>
+            <span class="ui-val" id="val-mod">10</span>
+          </div>
+          <div class="ui-slider-wrapper">
+            <button class="step-btn" id="btn-mod-dec">&lt;</button>
+            <input
+              type="range"
+              id="slider-mod"
+              min="2"
+              max="40"
+              step="1"
+              value="10"
+            />
+            <button class="step-btn" id="btn-mod-inc">&gt;</button>
+          </div>
+        </div>
+
+        <!-- Speed & Control -->
+        <div class="ui-row">
+          <div class="ui-header-row">
+            <div class="ui-label-group">
+              <span>Speed (ms)</span>
+              <button class="action-btn active" id="btn-play">❚❚ Pause</button>
+              <button class="action-btn" id="btn-step">▶ Step</button>
+              <button class="action-btn" id="btn-reset">↺ Reset</button>
+            </div>
+            <span class="ui-val" id="val-speed">300</span>
+          </div>
+          <div class="ui-slider-wrapper">
+            <button class="step-btn" id="btn-speed-dec">&lt;</button>
+            <input
+              type="range"
+              id="slider-speed"
+              min="20"
+              max="1000"
+              step="10"
+              value="300"
+            />
+            <button class="step-btn" id="btn-speed-inc">&gt;</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- カラーマップ切替ボタン -->
+      <div class="mode-container" id="colormap-list">
+        <span class="mode-label">Colormap:</span>
+      </div>
+
+      <!-- 背景カラーパレット -->
+      <div class="palettes-row">
+        <div class="palette-group">
+          <span>BG Color:</span>
+          <div class="palette-options" id="palette-bg"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // =========================================================
+      //  State
+      // =========================================================
+      let num = 100;
+      let mod = 10;
+      let stepIntervalMs = 300;
+      let isPlaying = true;
+      let colorMapName = "viridis";
+
+      const bgColorOptions = [
+        "#050505",
+        "#0B0F19",
+        "#1A0B2E",
+        "#1E222A",
+        "#000000",
+      ];
+      let bgColor = bgColorOptions[2]; // #1A0B2E (Python selected_idx=2 に一致)
+
+      // =========================================================
+      //  Colormaps Definition (Matplotlib Equivalent)
+      // =========================================================
+      const COLORMAPS = {
+        viridis: [
+          [0.0, [68, 1, 84]],
+          [0.25, [59, 82, 139]],
+          [0.5, [33, 145, 140]],
+          [0.75, [94, 201, 98]],
+          [1.0, [253, 231, 37]],
+        ],
+        plasma: [
+          [0.0, [13, 8, 135]],
+          [0.25, [126, 3, 168]],
+          [0.5, [204, 71, 120]],
+          [0.75, [248, 149, 64]],
+          [1.0, [240, 249, 33]],
+        ],
+        inferno: [
+          [0.0, [0, 0, 4]],
+          [0.25, [87, 16, 110]],
+          [0.5, [187, 55, 84]],
+          [0.75, [249, 142, 9]],
+          [1.0, [252, 255, 164]],
+        ],
+        magma: [
+          [0.0, [0, 0, 4]],
+          [0.25, [81, 18, 124]],
+          [0.5, [182, 54, 121]],
+          [0.75, [251, 136, 97]],
+          [1.0, [252, 253, 191]],
+        ],
+        cividis: [
+          [0.0, [0, 32, 77]],
+          [0.25, [65, 82, 104]],
+          [0.5, [123, 130, 123]],
+          [0.75, [190, 183, 121]],
+          [1.0, [255, 234, 70]],
+        ],
+        rainbow: [
+          [0.0, [150, 0, 255]],
+          [0.2, [0, 0, 255]],
+          [0.4, [0, 255, 255]],
+          [0.6, [0, 255, 0]],
+          [0.8, [255, 255, 0]],
+          [1.0, [255, 0, 0]],
+        ],
+        jet: [
+          [0.0, [0, 0, 143]],
+          [0.15, [0, 0, 255]],
+          [0.4, [0, 255, 255]],
+          [0.65, [255, 255, 0]],
+          [0.9, [255, 0, 0]],
+          [1.0, [128, 0, 0]],
+        ],
+        turbo: [
+          [0.0, [48, 18, 59]],
+          [0.17, [70, 134, 251]],
+          [0.33, [27, 229, 181]],
+          [0.5, [164, 252, 60]],
+          [0.67, [251, 185, 56]],
+          [0.83, [227, 68, 26]],
+          [1.0, [122, 4, 3]],
+        ],
+        nipy_spectral: [
+          [0.0, [0, 0, 0]],
+          [0.15, [153, 0, 204]],
+          [0.35, [0, 0, 255]],
+          [0.55, [0, 255, 0]],
+          [0.75, [255, 255, 0]],
+          [0.9, [255, 0, 0]],
+          [1.0, [255, 255, 255]],
+        ],
+        gist_ncar: [
+          [0.0, [0, 0, 128]],
+          [0.15, [0, 128, 255]],
+          [0.3, [0, 255, 128]],
+          [0.45, [128, 255, 0]],
+          [0.6, [255, 255, 0]],
+          [0.75, [255, 128, 0]],
+          [0.9, [255, 0, 128]],
+          [1.0, [255, 255, 255]],
+        ],
+      };
+
+      const BUTTONS = [
+        { label: "viridis", value: "viridis" },
+        { label: "plasma", value: "plasma" },
+        { label: "inferno", value: "inferno" },
+        { label: "magma", value: "magma" },
+        { label: "cividis", value: "cividis" },
+        { label: "rainbow", value: "rainbow" },
+        { label: "jet", value: "jet" },
+        { label: "turbo", value: "turbo" },
+        { label: "nipy_spectral", value: "nipy_spectral" },
+        { label: "gist_ncar", value: "gist_ncar" },
+      ];
+
+      function interpolateColor(stops, t) {
+        if (t <= stops[0][0]) {
+          const rgb = stops[0][1];
+          return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+        }
+        if (t >= stops[stops.length - 1][0]) {
+          const rgb = stops[stops.length - 1][1];
+          return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+        }
+        for (let i = 0; i < stops.length - 1; i++) {
+          const [t0, c0] = stops[i];
+          const [t1, c1] = stops[i + 1];
+          if (t >= t0 && t <= t1) {
+            const ratio = (t - t0) / (t1 - t0);
+            const r = Math.round(c0[0] + (c1[0] - c0[0]) * ratio);
+            const g = Math.round(c0[1] + (c1[1] - c0[1]) * ratio);
+            const b = Math.round(c0[2] + (c1[2] - c0[2]) * ratio);
+            return `rgb(${r},${g},${b})`;
+          }
+        }
+        return `rgb(${stops[0][1].join(",")})`;
+      }
+
+      function getPalette(name, count) {
+        const stops = COLORMAPS[name] || COLORMAPS.viridis;
+        const palette = [];
+        for (let i = 0; i < count; i++) {
+          const t = count > 1 ? i / (count - 1) : 0;
+          palette.push(interpolateColor(stops, t));
+        }
+        return palette;
+      }
+
+      // =========================================================
+      //  Canvas setup
+      // =========================================================
+      const canvas = document.getElementById("mainCanvas");
+      const ctx = canvas.getContext("2d");
+      const container = document.getElementById("canvas-container");
+
+      function resizeCanvas() {
+        const w = container.clientWidth;
+        const h = container.clientHeight;
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        renderCurrentState();
+      }
+
+      window.addEventListener("resize", resizeCanvas);
+
+      // =========================================================
+      //  Hexagonal Cellular Automaton Core Logic
+      // =========================================================
+      class HexCellularAutomaton {
+        /**
+         * 六角形セル・オートマトン
+         * @param {number} num - グリッドの行・列サイズ
+         * @param {number} mod - 状態数（法）
+         */
+        constructor(num, mod) {
+          this.num = num;
+          this.mod = mod;
+          // num × num の2次元配列を 0 で初期化
+          this.cells = Array.from({ length: num }, () => Array(num).fill(0));
+          // 中央のセルを 1 に設定
+          const center = Math.floor(num / 2);
+          this.cells[center][center] = 1;
+        }
+
+        /**
+         * 状態を1ステップ更新する
+         * @returns {number[][]}
+         */
+        update_state() {
+          const nextCells = Array.from({ length: this.num }, () =>
+            Array(this.num).fill(0),
+          );
+          for (let i = 0; i < this.num; i++) {
+            for (let j = 0; j < this.num; j++) {
+              nextCells[i][j] = this.transition(i, j);
+            }
+          }
+          this.cells = nextCells;
+          return nextCells;
+        }
+
+        /**
+         * 各セルの遷移ルールを計算する
+         * @param {number} i - 行インデックス (r)
+         * @param {number} j - 列インデックス (c)
+         * @returns {number}
+         */
+        transition(i, j) {
+          // 自身 ＋ 近傍のオフセット (平トップ六角形の千鳥配置)
+          let offsets;
+          if (j % 2 === 0) {
+            offsets = [
+              [0, 0],
+              [-1, 0],
+              [1, 0],
+              [0, -1],
+              [0, 1],
+              [-1, -1],
+              [-1, 1],
+            ];
+          } else {
+            offsets = [
+              [0, 0],
+              [-1, 0],
+              [1, 0],
+              [0, -1],
+              [0, 1],
+              [1, -1],
+              [1, 1],
+            ];
+          }
+
+          let total = 0;
+          for (let k = 0; k < offsets.length; k++) {
+            const di = offsets[k][0];
+            const dj = offsets[k][1];
+            const ni = (i + di + this.num) % this.num;
+            const nj = (j + dj + this.num) % this.num;
+            total += this.cells[ni][nj];
+          }
+
+          return total % this.mod;
+        }
+      }
+
+      let cellularAutomaton = new HexCellularAutomaton(num, mod);
+
+      // =========================================================
+      //  Drawing Logic
+      // =========================================================
+      /**
+       * 平らなトップを持つ六角形を描画する関数
+       */
+      function drawFlatToppedHexagon(
+        ctx,
+        fillColor,
+        cx,
+        cy,
+        radius,
+        borderColor,
+      ) {
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const angle = (Math.PI / 3) * i;
+          const x = cx + radius * Math.cos(angle);
+          const y = cy + radius * Math.sin(angle);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.fillStyle = fillColor;
+        ctx.fill();
+
+        if (borderColor) {
+          ctx.strokeStyle = borderColor;
+          ctx.lineWidth = radius > 6 ? 1 : 0.5;
+          ctx.stroke();
+        }
+      }
+
+      /**
+       * 六角形グリッド全体の描画
+       */
+      function drawHexGrid(ctx, cells, mod, center, width, cmapName) {
+        const rows = cells.length;
+        const cols = rows > 0 ? cells[0].length : 0;
+        if (rows === 0 || cols === 0) return;
+
+        // カラーパレットの生成 (0 〜 mod-1 に対応)
+        const colors = getPalette(cmapName, mod);
+
+        // 平トップ型の数学的ピッチ計算
+        // 横方向のステップ幅: 1.5 * radius
+        // 縦方向のステップ幅: sqrt(3) * radius
+        const radius = Math.min(
+          width / (Math.sqrt(3) * (rows + 0.5)),
+          width / (1.5 * cols + 0.5),
+        );
+        const xSpacing = 1.5 * radius;
+        const ySpacing = Math.sqrt(3) * radius;
+
+        // 描画の基準となる左上のオフセットを計算（グリッド中央に揃える）
+        const startX = center[0] - (xSpacing * (cols - 1)) / 2;
+        const startY = center[1] - (ySpacing * (rows - 0.5)) / 2;
+
+        const borderColor = radius >= 3 ? "rgba(40, 40, 40, 0.75)" : null;
+
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const val = cells[r][c];
+            const x = startX + xSpacing * c;
+            const y = startY + ySpacing * (r + (c % 2) * 0.5);
+            const color = colors[val] || colors[0];
+
+            drawFlatToppedHexagon(ctx, color, x, y, radius, borderColor);
+          }
+        }
+      }
+
+      function renderCurrentState() {
+        const w = container.clientWidth;
+        const h = container.clientHeight;
+
+        // 背景クリア
+        ctx.fillStyle = bgColor;
+        ctx.fillRect(0, 0, w, h);
+
+        // 六角形セルオートマトン描画
+        const drawWidth = Math.min(w, h) * 0.92;
+        drawHexGrid(
+          ctx,
+          cellularAutomaton.cells,
+          mod,
+          [w / 2, h / 2],
+          drawWidth,
+          colorMapName,
+        );
+      }
+
+      function stepAndRender() {
+        cellularAutomaton.update_state();
+        renderCurrentState();
+      }
+
+      // =========================================================
+      //  UI Controls: NUM, MOD, Speed, Play/Pause, Reset
+      // =========================================================
+      const sliderNum = document.getElementById("slider-num");
+      const valNum = document.getElementById("val-num");
+
+      function setNum(v) {
+        v = Math.max(2, Math.min(200, Math.round(v)));
+        num = v;
+        sliderNum.value = v;
+        valNum.textContent = v;
+        cellularAutomaton = new HexCellularAutomaton(num, mod);
+        renderCurrentState();
+      }
+
+      sliderNum.addEventListener("input", () =>
+        setNum(Number(sliderNum.value)),
+      );
+      document
+        .getElementById("btn-num-dec")
+        .addEventListener("click", () => setNum(num - 1));
+      document
+        .getElementById("btn-num-inc")
+        .addEventListener("click", () => setNum(num + 1));
+
+      const sliderMod = document.getElementById("slider-mod");
+      const valMod = document.getElementById("val-mod");
+
+      function setMod(v) {
+        v = Math.max(2, Math.min(40, Math.round(v)));
+        mod = v;
+        sliderMod.value = v;
+        valMod.textContent = v;
+        cellularAutomaton = new HexCellularAutomaton(num, mod);
+        renderCurrentState();
+      }
+
+      sliderMod.addEventListener("input", () =>
+        setMod(Number(sliderMod.value)),
+      );
+      document
+        .getElementById("btn-mod-dec")
+        .addEventListener("click", () => setMod(mod - 1));
+      document
+        .getElementById("btn-mod-inc")
+        .addEventListener("click", () => setMod(mod + 1));
+
+      const sliderSpeed = document.getElementById("slider-speed");
+      const valSpeed = document.getElementById("val-speed");
+
+      function setSpeed(v) {
+        v = Math.max(20, Math.min(1000, Math.round(v)));
+        stepIntervalMs = v;
+        sliderSpeed.value = v;
+        valSpeed.textContent = v;
+      }
+
+      sliderSpeed.addEventListener("input", () =>
+        setSpeed(Number(sliderSpeed.value)),
+      );
+      document
+        .getElementById("btn-speed-dec")
+        .addEventListener("click", () => setSpeed(stepIntervalMs - 20));
+      document
+        .getElementById("btn-speed-inc")
+        .addEventListener("click", () => setSpeed(stepIntervalMs + 20));
+
+      // Play / Pause / Step / Reset
+      const btnPlay = document.getElementById("btn-play");
+      const btnStep = document.getElementById("btn-step");
+      const btnReset = document.getElementById("btn-reset");
+
+      btnPlay.addEventListener("click", () => {
+        isPlaying = !isPlaying;
+        if (isPlaying) {
+          btnPlay.textContent = "❚❚ Pause";
+          btnPlay.classList.add("active");
+        } else {
+          btnPlay.textContent = "▶ Play";
+          btnPlay.classList.remove("active");
+        }
+      });
+
+      btnStep.addEventListener("click", () => {
+        if (isPlaying) {
+          isPlaying = false;
+          btnPlay.textContent = "▶ Play";
+          btnPlay.classList.remove("active");
+        }
+        stepAndRender();
+      });
+
+      btnReset.addEventListener("click", () => {
+        cellularAutomaton = new HexCellularAutomaton(num, mod);
+        renderCurrentState();
+      });
+
+      // =========================================================
+      //  UI: Colormap Buttons
+      // =========================================================
+      const colormapList = document.getElementById("colormap-list");
+
+      BUTTONS.forEach((item) => {
+        const btn = document.createElement("button");
+        btn.className =
+          "mode-btn" + (item.value === colorMapName ? " active" : "");
+        btn.textContent = item.label;
+        btn.dataset.value = item.value;
+        btn.addEventListener("click", () => {
+          colorMapName = item.value;
+          colormapList
+            .querySelectorAll(".mode-btn")
+            .forEach((b) =>
+              b.classList.toggle("active", b.dataset.value === colorMapName),
+            );
+          renderCurrentState();
+        });
+        colormapList.appendChild(btn);
+      });
+
+      // =========================================================
+      //  UI: Color Palettes (BG Color)
+      // =========================================================
+      function buildPalette(containerId, colors, selectedIdx, onChange) {
+        const el = document.getElementById(containerId);
+        colors.forEach((hex, i) => {
+          const swatch = document.createElement("div");
+          swatch.className =
+            "color-swatch" + (i === selectedIdx ? " selected" : "");
+          swatch.style.backgroundColor = hex;
+          swatch.addEventListener("click", () => {
+            el.querySelectorAll(".color-swatch").forEach((s) =>
+              s.classList.remove("selected"),
+            );
+            swatch.classList.add("selected");
+            onChange(hex);
+          });
+          el.appendChild(swatch);
+        });
+      }
+
+      buildPalette("palette-bg", bgColorOptions, 2, (c) => {
+        bgColor = c;
+        renderCurrentState();
+      });
+
+      // =========================================================
+      //  Initial Draw & Animation Loop
+      // =========================================================
+      resizeCanvas();
+
+      let lastStepTime = performance.now();
+      function animationLoop(timestamp) {
+        if (isPlaying && timestamp - lastStepTime >= stepIntervalMs) {
+          lastStepTime = timestamp;
+          stepAndRender();
+        }
+        requestAnimationFrame(animationLoop);
+      }
+      requestAnimationFrame(animationLoop);
+    </script>
+  </body>
+</html>
