@@ -15,6 +15,7 @@ laboratory/
 ├── congruence/                # 合同算術の可視化
 ├── cellular_automaton/        # セル・オートマトン
 ├── hex_cellular_automaton/    # 六角形セル・オートマトン
+├── geodesic_grid/             # ジオデシック・グリッド（球状離散メッシュ）
 └── README.md
 ```
 
@@ -28,6 +29,7 @@ laboratory/
 | `2026-11-13` | `Math`   | 合同算術の可視化                     | Python (Pygame), HTML5 Canvas, JS | 数学から創るジェネラティブアート, |
 | `2026-11-15` | `Math`   | セル・オートマトンのシミュレーション | Python (Pygame), HTML5 Canvas, JS | 数学から創るジェネラティブアート, |
 | `2026-11-16` | `Math`   | 六角形セル・オートマトンの可視化     | Python (Pygame), HTML5 Canvas, JS | 数学から創るジェネラティブアート, |
+| `2026-11-17` | `Math`   | ジオデシック・グリッドの生成・可視化 | Python (PyVista, NumPy)           | 正二十面体の細分化・球面投影・双対化 |
 | `Plan`       | `Math`   | 曲線                                 |                                   | 数学から創るジェネラティブアート, |
 
 ## 🚀 新規実験の進め方 (Workflow)
