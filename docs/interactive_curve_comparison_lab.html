@@ -1,0 +1,1896 @@
+<!--
+  曲線アルゴリズム比較シミュレーター (Curve Theory Lab)
+-->
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>曲線アルゴリズム比較シミュレーター</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        user-select: none;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Consolas",
+          monospace, sans-serif;
+        background-color: #050505;
+        color: #dcdcdc;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        height: 100dvh;
+        overflow: hidden;
+      }
+
+      /* --- Top Canvas Area --- */
+      #canvas-container {
+        flex: 1;
+        width: 100%;
+        min-height: 0;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #060911;
+      }
+
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+        cursor: crosshair;
+      }
+
+      /* Floating Overlay Hints on Canvas */
+      .canvas-overlay-top {
+        position: absolute;
+        top: 10px;
+        left: 12px;
+        right: 12px;
+        pointer-events: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        z-index: 5;
+      }
+
+      .hint-badge {
+        background: rgba(18, 22, 34, 0.85);
+        backdrop-filter: blur(6px);
+        border: 1px solid rgba(60, 65, 80, 0.6);
+        border-radius: 6px;
+        padding: 4px 10px;
+        font-size: 11.5px;
+        color: #cbd5e1;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      }
+
+      .pulse-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background-color: #34d399;
+        box-shadow: 0 0 8px #34d399;
+      }
+
+      .coord-badge {
+        background: rgba(18, 22, 34, 0.85);
+        backdrop-filter: blur(6px);
+        border: 1px solid rgba(60, 65, 80, 0.6);
+        border-radius: 6px;
+        padding: 4px 10px;
+        font-size: 11px;
+        font-family: "Consolas", monospace;
+        color: #94a3b8;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      }
+
+      .coord-badge.active {
+        color: #38bdf8;
+      }
+
+      /* --- Bottom UI Panel --- */
+      #ui-panel {
+        background-color: #1e1e22;
+        border-top: 1px solid #33333d;
+        padding: 10px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        z-index: 10;
+        flex-shrink: 0;
+        max-height: 48vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      /* Rows & Button Containers */
+      .control-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .btn-group {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .section-label {
+        font-size: 12px;
+        color: #9ca3af;
+        margin-right: 4px;
+      }
+
+      .count-badge {
+        font-size: 11px;
+        font-family: "Consolas", monospace;
+        color: #70b0ff;
+        font-weight: 600;
+        padding: 0 4px;
+      }
+
+      /* Action / Preset Buttons */
+      .action-btn {
+        background: #282830;
+        border: 1px solid #424250;
+        color: #c0c0c8;
+        border-radius: 4px;
+        padding: 4px 10px;
+        font-size: 11.5px;
+        font-family: inherit;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition:
+          background 0.15s,
+          border-color 0.15s,
+          color 0.15s;
+      }
+
+      .action-btn:hover {
+        background: #373744;
+        border-color: #5b5b6e;
+        color: #ffffff;
+      }
+
+      .action-btn:disabled {
+        opacity: 0.4;
+        pointer-events: none;
+      }
+
+      .mode-btn {
+        background: #282830;
+        border: 1px solid #424250;
+        color: #c0c0c8;
+        border-radius: 4px;
+        padding: 4px 10px;
+        font-size: 11.5px;
+        font-family: inherit;
+        cursor: pointer;
+        transition:
+          background 0.15s,
+          border-color 0.15s,
+          color 0.15s;
+      }
+
+      .mode-btn:hover {
+        background: #373744;
+        border-color: #5b5b6e;
+        color: #ffffff;
+      }
+
+      .mode-btn.active {
+        background: #1e3a8a;
+        border-color: #3b82f6;
+        color: #ffffff;
+        font-weight: 500;
+      }
+
+      /* Slider & Option Grid */
+      .slider-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 8px 20px;
+        border-top: 1px solid #2d2d38;
+        padding-top: 8px;
+      }
+
+      .ui-row {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .ui-header-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 12.5px;
+        font-family: "Consolas", monospace;
+      }
+
+      .ui-val {
+        color: #70b0ff;
+        font-weight: 600;
+      }
+
+      .ui-slider-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+      }
+
+      .step-btn {
+        width: 24px;
+        height: 24px;
+        flex-shrink: 0;
+        background: #2a2a32;
+        border: 1px solid #4a4a58;
+        color: #dcdcdc;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 12px;
+        font-family: monospace;
+        transition:
+          background 0.15s,
+          border-color 0.15s,
+          transform 0.05s;
+      }
+
+      .step-btn:hover {
+        background: #383844;
+        border-color: #70b0ff;
+      }
+
+      .step-btn:active {
+        transform: scale(0.92);
+      }
+
+      input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
+        flex: 1;
+        height: 7px;
+        border-radius: 4px;
+        background: #3c3c44;
+        outline: none;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        background: #e0e0e0;
+        border: 2px solid #1e1e22;
+        cursor: pointer;
+        transition: transform 0.1s ease;
+      }
+
+      input[type="range"]::-moz-range-thumb {
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        background: #e0e0e0;
+        border: 2px solid #1e1e22;
+        cursor: pointer;
+      }
+
+      input[type="range"]::-webkit-slider-thumb:hover {
+        transform: scale(1.15);
+      }
+
+      /* Inline Toggles & Tangent Readout */
+      .toggle-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        font-size: 12px;
+        color: #d1d5db;
+      }
+
+      .toggle-label input[type="checkbox"] {
+        accent-color: #3b82f6;
+        cursor: pointer;
+      }
+
+      .tangent-info-badge {
+        display: flex;
+        gap: 8px;
+        font-size: 10.5px;
+        font-family: "Consolas", monospace;
+      }
+
+      .start-tag {
+        color: #fb7185;
+      }
+
+      .end-tag {
+        color: #38bdf8;
+      }
+
+      .toggle-group-inline {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        align-items: center;
+        margin-top: 2px;
+      }
+
+      /* Curves Grid Section */
+      .curves-section {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        border-top: 1px solid #2d2d38;
+        padding-top: 8px;
+      }
+
+      .curves-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .curves-actions {
+        display: flex;
+        gap: 4px;
+      }
+
+      .action-btn-sm {
+        background: #282830;
+        border: 1px solid #424250;
+        color: #9ca3af;
+        border-radius: 3px;
+        padding: 2px 7px;
+        font-size: 10.5px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+
+      .action-btn-sm:hover {
+        background: #373744;
+        color: #ffffff;
+      }
+
+      .curves-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 6px;
+      }
+
+      .curve-card {
+        background: #25252c;
+        border: 1px solid #3c3c48;
+        border-radius: 5px;
+        padding: 6px 10px;
+        cursor: pointer;
+        transition:
+          background 0.15s,
+          border-color 0.15s,
+          opacity 0.15s;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .curve-card:hover {
+        background: #2d2d36;
+      }
+
+      .curve-card.active {
+        border-color: #4f5b72;
+        background: #282a35;
+      }
+
+      .curve-card.inactive {
+        opacity: 0.55;
+      }
+
+      .curve-card-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+      }
+
+      .curve-title-wrap {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .color-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+
+      .curve-name {
+        font-size: 11.5px;
+        font-weight: 600;
+        color: #f1f5f9;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .curve-tag {
+        font-size: 9.5px;
+        padding: 1px 5px;
+        border-radius: 3px;
+        background: #1e293b;
+        color: #94a3b8;
+        border: 1px solid #334155;
+        flex-shrink: 0;
+      }
+
+      .curve-desc {
+        font-size: 10px;
+        color: #8e95a5;
+        line-height: 1.35;
+        padding-left: 15px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Canvas Area -->
+    <div id="canvas-container">
+      <div class="canvas-overlay-top">
+        <div class="hint-badge">
+          <span class="pulse-dot"></span>
+          <span>点や矢印をドラッグ ／ ダブルクリックで点追加</span>
+        </div>
+        <div class="coord-badge" id="coord-readout">
+          Hover or drag a point / handle
+        </div>
+      </div>
+      <canvas id="curveCanvas"></canvas>
+    </div>
+
+    <!-- UI Control Panel -->
+    <div id="ui-panel">
+      <!-- プリセット & 点数制御 -->
+      <div class="control-row">
+        <div class="btn-group" id="preset-list">
+          <span class="section-label">Presets:</span>
+          <button class="mode-btn active" data-preset="wave">
+            サイン波 (標準)
+          </button>
+          <button class="mode-btn" data-preset="step">
+            急変・階段 (ルンゲ)
+          </button>
+          <button class="mode-btn" data-preset="loop">S字・ループ</button>
+          <button class="mode-btn" data-preset="outlier">外れ値・ノイズ</button>
+        </div>
+
+        <div class="btn-group">
+          <button class="action-btn" id="btn-remove-pt" title="最後の点を削除">
+            － 点削除
+          </button>
+          <span class="count-badge" id="point-count-badge">5 pts</span>
+          <button class="action-btn" id="btn-add-pt" title="新しい点を追加">
+            ＋ 点追加
+          </button>
+          <button class="action-btn" id="btn-reset" title="初期状態に戻す">
+            ↺ リセット
+          </button>
+        </div>
+      </div>
+
+      <!-- 曲線アルゴリズム選択 -->
+      <div class="curves-section">
+        <div class="curves-header">
+          <span class="section-label">比較する曲線アルゴリズム:</span>
+          <div class="curves-actions">
+            <button class="action-btn-sm" id="btn-all-on">全選択</button>
+            <button class="action-btn-sm" id="btn-all-off">全解除</button>
+          </div>
+        </div>
+        <div class="curves-grid" id="curve-controls">
+          <!-- Dynamically populated by JS -->
+        </div>
+      </div>
+
+      <!-- スライダー & トグルオプション (張力・端点方向・点番号・弦長パラメータ) -->
+      <div class="slider-grid">
+        <!-- Catmull-Rom Tension -->
+        <div class="ui-row">
+          <div class="ui-header-row">
+            <span>Catmull-Rom 張力 (Tension)</span>
+            <span class="ui-val" id="tension-val">0.50</span>
+          </div>
+          <div class="ui-slider-wrapper">
+            <button class="step-btn" id="btn-tension-dec">&lt;</button>
+            <input
+              type="range"
+              id="tension-slider"
+              min="0"
+              max="1"
+              step="0.05"
+              value="0.5"
+            />
+            <button class="step-btn" id="btn-tension-inc">&gt;</button>
+          </div>
+        </div>
+
+        <!-- 境界条件 & オプション -->
+        <div class="ui-row">
+          <div class="ui-header-row">
+            <label class="toggle-label">
+              <input type="checkbox" id="toggle-tangents" checked />
+              <span>🎯 端点方向を指定 (境界条件)</span>
+            </label>
+            <div class="tangent-info-badge" id="tangent-readout-box">
+              <span class="start-tag" id="start-vec-info">START: 0° / 100</span>
+              <span class="end-tag" id="end-vec-info">END: 0° / 100</span>
+            </div>
+          </div>
+          <div class="toggle-group-inline">
+            <label class="toggle-label">
+              <input type="checkbox" id="toggle-labels" checked />
+              <span>点番号・座標表示</span>
+            </label>
+            <label class="toggle-label">
+              <input type="checkbox" id="toggle-param-chord" checked />
+              <span title="点間の距離に応じてパラメータtを割り振る"
+                >弦長パラメータ化</span
+              >
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        const canvas = document.getElementById("curveCanvas");
+        const ctx = canvas.getContext("2d");
+        const container = document.getElementById("canvas-container");
+        const coordReadout = document.getElementById("coord-readout");
+        const pointCountBadge = document.getElementById("point-count-badge");
+
+        // State
+        let width = 800;
+        let height = 500;
+        let dpr = window.devicePixelRatio || 1;
+        let points = [];
+        let startTangent = { x: 110, y: -90 };
+        let endTangent = { x: 110, y: 90 };
+        let useBoundaryTangents = true;
+
+        let dragTarget = null;
+        let hoverTarget = null;
+
+        let tension = 0.5;
+        let showLabels = true;
+        let useChordLength = true;
+
+        // Curve definitions
+        const curveConfigs = [
+          {
+            id: "linear",
+            name: "折れ線 (Linear)",
+            tag: "基準線",
+            color: "#64748b",
+            dash: [5, 5],
+            width: 1.5,
+            enabled: true,
+            desc: "点と点を最短距離の直線で結ぶ制御ポリゴン。角が尖る（C0連続）。",
+          },
+          {
+            id: "clampedSpline",
+            name: "クランプド3次スプライン",
+            tag: "方向指定・C2",
+            color: "#e879f9",
+            dash: [],
+            width: 3.2,
+            enabled: true,
+            desc: "始終端の接線方向（1階微分）を指定し全点をC2連続で結ぶ3次スプライン。",
+          },
+          {
+            id: "naturalSpline",
+            name: "自然3次スプライン",
+            tag: "端点自由",
+            color: "#10b981",
+            dash: [6, 4],
+            width: 2.5,
+            enabled: true,
+            desc: "両端の2階微分を0にした標準の3次スプライン。Clampedとの差を比較可能。",
+          },
+          {
+            id: "catmull",
+            name: "Catmull-Rom スプライン",
+            tag: "全点通過",
+            color: "#22d3ee",
+            dash: [],
+            width: 2.8,
+            enabled: true,
+            desc: "方向指定時は仮想点により発射・着地角を再現する局所制御スプライン。",
+          },
+          {
+            id: "hermite",
+            name: "区分3次エルミート",
+            tag: "接線直結",
+            color: "#818cf8",
+            dash: [],
+            width: 2.5,
+            enabled: false,
+            desc: "各点の接線ベクトルから直接3次式を組む。端点ベクトルの勢いに忠実。",
+          },
+          {
+            id: "lagrange",
+            name: "ラグランジュ補間",
+            tag: "高次多項式",
+            color: "#fb7185",
+            dash: [],
+            width: 2.2,
+            enabled: false,
+            desc: "1本の高次多項式で全点を通す。急変部や端で激しく暴走（ルンゲ現象）。",
+          },
+          {
+            id: "bspline",
+            name: "一様3次Bスプライン",
+            tag: "近似・滑らか",
+            color: "#fbbf24",
+            dash: [],
+            width: 2.4,
+            enabled: false,
+            desc: "点は通らず制御点に引き寄せられながら極めて滑らかな曲線を描く。",
+          },
+          {
+            id: "bezier",
+            name: "高次ベジェ曲線",
+            tag: "近似・大域制御",
+            color: "#c084fc",
+            dash: [],
+            width: 2.3,
+            enabled: false,
+            desc: "P0→P1の向きが発射角になる。点の数だけ次数が上がり全体を丸める。",
+          },
+          {
+            id: "leastSquares",
+            name: "最小二乗法 (2次近似)",
+            tag: "誤差最小化",
+            color: "#fb923c",
+            dash: [8, 4],
+            width: 2.4,
+            enabled: false,
+            desc: "点を通らず全体の誤差を最小化する2次曲線をフィット。外れ値に強い。",
+          },
+        ];
+
+        // Build UI Controls
+        function buildControlsUI() {
+          const container = document.getElementById("curve-controls");
+          container.innerHTML = "";
+
+          curveConfigs.forEach((cfg) => {
+            const card = document.createElement("div");
+            card.className = `curve-card ${cfg.enabled ? "active" : "inactive"}`;
+
+            card.innerHTML = `
+            <div class="curve-card-top">
+              <div class="curve-title-wrap">
+                <span class="color-dot" style="background-color: ${cfg.color}; box-shadow: 0 0 6px ${cfg.color}88;"></span>
+                <span class="curve-name">${cfg.name}</span>
+              </div>
+              <span class="curve-tag">${cfg.tag}</span>
+            </div>
+            <div class="curve-desc">${cfg.desc}</div>
+          `;
+
+            card.addEventListener("click", () => {
+              cfg.enabled = !cfg.enabled;
+              card.className = `curve-card ${cfg.enabled ? "active" : "inactive"}`;
+              render();
+            });
+
+            container.appendChild(card);
+          });
+        }
+
+        // Resize Canvas
+        function resizeCanvas() {
+          const rect = container.getBoundingClientRect();
+          width = rect.width;
+          height = rect.height;
+          dpr = window.devicePixelRatio || 1;
+          canvas.width = width * dpr;
+          canvas.height = height * dpr;
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+          if (points.length === 0) {
+            applyPreset("wave");
+          } else {
+            points.forEach((p) => {
+              p.x = Math.max(30, Math.min(width - 30, p.x));
+              p.y = Math.max(30, Math.min(height - 30, p.y));
+            });
+            render();
+          }
+        }
+
+        // Presets
+        function applyPreset(type) {
+          const padX = Math.max(60, width * 0.12);
+          const usableW = width - padX * 2;
+          const midY = height * 0.5;
+          const ampY = Math.min(height * 0.32, 180);
+
+          if (type === "wave") {
+            points = [
+              { x: padX, y: midY + ampY * 0.45 },
+              { x: padX + usableW * 0.25, y: midY - ampY * 0.65 },
+              { x: padX + usableW * 0.5, y: midY + ampY * 0.1 },
+              { x: padX + usableW * 0.75, y: midY - ampY * 0.55 },
+              { x: padX + usableW, y: midY + ampY * 0.45 },
+            ];
+            startTangent = { x: 110, y: -110 };
+            endTangent = { x: 110, y: 110 };
+          } else if (type === "step") {
+            points = [
+              { x: padX, y: midY + ampY * 0.7 },
+              { x: padX + usableW * 0.16, y: midY + ampY * 0.7 },
+              { x: padX + usableW * 0.33, y: midY + ampY * 0.68 },
+              { x: padX + usableW * 0.5, y: midY - ampY * 0.75 },
+              { x: padX + usableW * 0.67, y: midY - ampY * 0.75 },
+              { x: padX + usableW * 0.84, y: midY - ampY * 0.73 },
+              { x: padX + usableW, y: midY - ampY * 0.75 },
+            ];
+            startTangent = { x: 120, y: 0 };
+            endTangent = { x: 120, y: 0 };
+          } else if (type === "loop") {
+            const cx = width * 0.5;
+            const rx = Math.min(usableW * 0.38, 220);
+            points = [
+              { x: cx - rx * 0.9, y: midY + ampY * 0.75 },
+              { x: cx + rx * 0.85, y: midY + ampY * 0.45 },
+              { x: cx - rx * 0.5, y: midY - ampY * 0.65 },
+              { x: cx + rx * 0.5, y: midY - ampY * 0.65 },
+              { x: cx - rx * 0.85, y: midY + ampY * 0.45 },
+              { x: cx + rx * 0.9, y: midY + ampY * 0.75 },
+            ];
+            startTangent = { x: 130, y: -30 };
+            endTangent = { x: 130, y: 30 };
+          } else if (type === "outlier") {
+            points = [
+              { x: padX, y: midY + ampY * 0.6 },
+              { x: padX + usableW * 0.2, y: midY + ampY * 0.2 },
+              { x: padX + usableW * 0.4, y: midY - ampY * 0.15 },
+              { x: padX + usableW * 0.6, y: midY + ampY * 0.92 },
+              { x: padX + usableW * 0.8, y: midY - ampY * 0.55 },
+              { x: padX + usableW, y: midY - ampY * 0.75 },
+            ];
+            startTangent = { x: 110, y: -60 };
+            endTangent = { x: 110, y: -60 };
+            const ls = curveConfigs.find((c) => c.id === "leastSquares");
+            if (ls && !ls.enabled) {
+              ls.enabled = true;
+              buildControlsUI();
+            }
+          }
+
+          document.querySelectorAll("#preset-list .mode-btn").forEach((btn) => {
+            btn.classList.toggle("active", btn.dataset.preset === type);
+          });
+
+          updateTangentReadout();
+          updatePointButtons();
+          render();
+        }
+
+        function updateTangentReadout() {
+          const startInfo = document.getElementById("start-vec-info");
+          const endInfo = document.getElementById("end-vec-info");
+          const box = document.getElementById("tangent-readout-box");
+
+          if (!useBoundaryTangents) {
+            box.style.opacity = "0.35";
+          } else {
+            box.style.opacity = "1";
+          }
+
+          const sDeg = Math.round(
+            (Math.atan2(startTangent.y, startTangent.x) * 180) / Math.PI,
+          );
+          const sMag = Math.round(Math.hypot(startTangent.x, startTangent.y));
+          startInfo.textContent = `START: ${sDeg}° / ${sMag}`;
+
+          const eDeg = Math.round(
+            (Math.atan2(endTangent.y, endTangent.x) * 180) / Math.PI,
+          );
+          const eMag = Math.round(Math.hypot(endTangent.x, endTangent.y));
+          endInfo.textContent = `END: ${eDeg}° / ${eMag}`;
+        }
+
+        function updatePointButtons() {
+          pointCountBadge.textContent = `${points.length} pts`;
+          document.getElementById("btn-remove-pt").disabled =
+            points.length <= 2;
+          document.getElementById("btn-add-pt").disabled = points.length >= 12;
+        }
+
+        function getParameters(pts) {
+          const n = pts.length;
+          const t = new Array(n).fill(0);
+          if (!useChordLength) {
+            for (let i = 0; i < n; i++) t[i] = i;
+            return t;
+          }
+          for (let i = 1; i < n; i++) {
+            const dx = pts[i].x - pts[i - 1].x;
+            const dy = pts[i].y - pts[i - 1].y;
+            const dist = Math.hypot(dx, dy);
+            t[i] = t[i - 1] + Math.max(dist, 1e-3);
+          }
+          return t;
+        }
+
+        // ==========================================
+        // MATHEMATICAL CURVE SOLVERS
+        // ==========================================
+
+        function sampleCatmullRom(pts, tens = 0.5, samplesPerSeg = 32) {
+          const n = pts.length;
+          if (n < 2) return [];
+          const result = [];
+
+          const ghostStart = useBoundaryTangents
+            ? {
+                x: pts[0].x - startTangent.x / Math.max(tens, 0.15),
+                y: pts[0].y - startTangent.y / Math.max(tens, 0.15),
+              }
+            : pts[0];
+          const ghostEnd = useBoundaryTangents
+            ? {
+                x: pts[n - 1].x + endTangent.x / Math.max(tens, 0.15),
+                y: pts[n - 1].y + endTangent.y / Math.max(tens, 0.15),
+              }
+            : pts[n - 1];
+
+          for (let i = 0; i < n - 1; i++) {
+            const p0 = i === 0 ? ghostStart : pts[i - 1];
+            const p1 = pts[i];
+            const p2 = pts[i + 1];
+            const p3 = i === n - 2 ? ghostEnd : pts[i + 2];
+
+            const m1x =
+              i === 0 && useBoundaryTangents
+                ? startTangent.x * (tens * 2)
+                : tens * (p2.x - p0.x);
+            const m1y =
+              i === 0 && useBoundaryTangents
+                ? startTangent.y * (tens * 2)
+                : tens * (p2.y - p0.y);
+            const m2x =
+              i === n - 2 && useBoundaryTangents
+                ? endTangent.x * (tens * 2)
+                : tens * (p3.x - p1.x);
+            const m2y =
+              i === n - 2 && useBoundaryTangents
+                ? endTangent.y * (tens * 2)
+                : tens * (p3.y - p1.y);
+
+            const steps = i === n - 2 ? samplesPerSeg : samplesPerSeg - 1;
+            for (let s = 0; s <= steps; s++) {
+              const u = s / samplesPerSeg;
+              const u2 = u * u;
+              const u3 = u2 * u;
+
+              const h00 = 2 * u3 - 3 * u2 + 1;
+              const h10 = u3 - 2 * u2 + u;
+              const h01 = -2 * u3 + 3 * u2;
+              const h11 = u3 - u2;
+
+              result.push({
+                x: h00 * p1.x + h10 * m1x + h01 * p2.x + h11 * m2x,
+                y: h00 * p1.y + h10 * m1y + h01 * p2.y + h11 * m2y,
+              });
+            }
+          }
+          return result;
+        }
+
+        function sampleCubicHermite(pts, samplesPerSeg = 32) {
+          const n = pts.length;
+          if (n < 2) return [];
+          const t = getParameters(pts);
+          const result = [];
+
+          const m = new Array(n);
+          for (let i = 0; i < n; i++) {
+            if (i === 0) {
+              if (useBoundaryTangents) {
+                const h0 = Math.max(t[1] - t[0], 1e-4);
+                const scale =
+                  (h0 /
+                    Math.max(
+                      Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y),
+                      1,
+                    )) *
+                  1.6;
+                m[0] = { x: startTangent.x * scale, y: startTangent.y * scale };
+              } else {
+                const h0 = Math.max(t[1] - t[0], 1e-4);
+                m[0] = {
+                  x: (pts[1].x - pts[0].x) / h0,
+                  y: (pts[1].y - pts[0].y) / h0,
+                };
+              }
+            } else if (i === n - 1) {
+              if (useBoundaryTangents) {
+                const hn = Math.max(t[n - 1] - t[n - 2], 1e-4);
+                const scale =
+                  (hn /
+                    Math.max(
+                      Math.hypot(
+                        pts[n - 1].x - pts[n - 2].x,
+                        pts[n - 1].y - pts[n - 2].y,
+                      ),
+                      1,
+                    )) *
+                  1.6;
+                m[n - 1] = { x: endTangent.x * scale, y: endTangent.y * scale };
+              } else {
+                const hn = Math.max(t[n - 1] - t[n - 2], 1e-4);
+                m[n - 1] = {
+                  x: (pts[n - 1].x - pts[n - 2].x) / hn,
+                  y: (pts[n - 1].y - pts[n - 2].y) / hn,
+                };
+              }
+            } else {
+              const dt = Math.max(t[i + 1] - t[i - 1], 1e-4);
+              m[i] = {
+                x: (pts[i + 1].x - pts[i - 1].x) / dt,
+                y: (pts[i + 1].y - pts[i - 1].y) / dt,
+              };
+            }
+          }
+
+          for (let i = 0; i < n - 1; i++) {
+            const h = Math.max(t[i + 1] - t[i], 1e-4);
+            const steps = i === n - 2 ? samplesPerSeg : samplesPerSeg - 1;
+            for (let s = 0; s <= steps; s++) {
+              const u = s / samplesPerSeg;
+              const u2 = u * u;
+              const u3 = u2 * u;
+
+              const h00 = 2 * u3 - 3 * u2 + 1;
+              const h10 = u3 - 2 * u2 + u;
+              const h01 = -2 * u3 + 3 * u2;
+              const h11 = u3 - u2;
+
+              result.push({
+                x:
+                  h00 * pts[i].x +
+                  h10 * h * m[i].x +
+                  h01 * pts[i + 1].x +
+                  h11 * h * m[i + 1].x,
+                y:
+                  h00 * pts[i].y +
+                  h10 * h * m[i].y +
+                  h01 * pts[i + 1].y +
+                  h11 * h * m[i + 1].y,
+              });
+            }
+          }
+          return result;
+        }
+
+        function solveNaturalSpline1D(t, y) {
+          const n = t.length;
+          const h = new Array(n - 1);
+          for (let i = 0; i < n - 1; i++) {
+            h[i] = Math.max(t[i + 1] - t[i], 1e-4);
+          }
+
+          const alpha = new Array(n).fill(0);
+          for (let i = 1; i < n - 1; i++) {
+            alpha[i] =
+              (3 / h[i]) * (y[i + 1] - y[i]) -
+              (3 / h[i - 1]) * (y[i] - y[i - 1]);
+          }
+
+          const l = new Array(n).fill(1);
+          const mu = new Array(n).fill(0);
+          const z = new Array(n).fill(0);
+
+          for (let i = 1; i < n - 1; i++) {
+            l[i] = 2 * (t[i + 1] - t[i - 1]) - h[i - 1] * mu[i - 1];
+            mu[i] = h[i] / l[i];
+            z[i] = (alpha[i] - h[i - 1] * z[i - 1]) / l[i];
+          }
+
+          const c = new Array(n).fill(0);
+          const b = new Array(n - 1).fill(0);
+          const d = new Array(n - 1).fill(0);
+
+          for (let j = n - 2; j >= 0; j--) {
+            c[j] = z[j] - mu[j] * c[j + 1];
+            b[j] =
+              (y[j + 1] - y[j]) / h[j] - (h[j] * (c[j + 1] + 2 * c[j])) / 3;
+            d[j] = (c[j + 1] - c[j]) / (3 * h[j]);
+          }
+
+          return { a: y, b, c, d, t, h };
+        }
+
+        function solveClampedSpline1D(t, y, fpo, fpn) {
+          const n = t.length;
+          const h = new Array(n - 1);
+          for (let i = 0; i < n - 1; i++) {
+            h[i] = Math.max(t[i + 1] - t[i], 1e-4);
+          }
+
+          const alpha = new Array(n).fill(0);
+          alpha[0] = (3 * (y[1] - y[0])) / h[0] - 3 * fpo;
+          alpha[n - 1] = 3 * fpn - (3 * (y[n - 1] - y[n - 2])) / h[n - 2];
+
+          for (let i = 1; i < n - 1; i++) {
+            alpha[i] =
+              (3 / h[i]) * (y[i + 1] - y[i]) -
+              (3 / h[i - 1]) * (y[i] - y[i - 1]);
+          }
+
+          const l = new Array(n).fill(0);
+          const mu = new Array(n).fill(0);
+          const z = new Array(n).fill(0);
+
+          l[0] = 2 * h[0];
+          mu[0] = 0.5;
+          z[0] = alpha[0] / l[0];
+
+          for (let i = 1; i < n - 1; i++) {
+            l[i] = 2 * (t[i + 1] - t[i - 1]) - h[i - 1] * mu[i - 1];
+            mu[i] = h[i] / l[i];
+            z[i] = (alpha[i] - h[i - 1] * z[i - 1]) / l[i];
+          }
+
+          l[n - 1] = h[n - 2] * (2 - mu[n - 2]);
+          z[n - 1] = (alpha[n - 1] - h[n - 2] * z[n - 2]) / l[n - 1];
+
+          const c = new Array(n).fill(0);
+          const b = new Array(n - 1).fill(0);
+          const d = new Array(n - 1).fill(0);
+
+          c[n - 1] = z[n - 1];
+          for (let j = n - 2; j >= 0; j--) {
+            c[j] = z[j] - mu[j] * c[j + 1];
+            b[j] =
+              (y[j + 1] - y[j]) / h[j] - (h[j] * (c[j + 1] + 2 * c[j])) / 3;
+            d[j] = (c[j + 1] - c[j]) / (3 * h[j]);
+          }
+
+          return { a: y, b, c, d, t, h };
+        }
+
+        function sampleCubicSplineWithSolver(
+          pts,
+          isClamped,
+          samplesPerSeg = 32,
+        ) {
+          const n = pts.length;
+          if (n < 2) return [];
+          const t = getParameters(pts);
+
+          let sx, sy;
+          if (isClamped && useBoundaryTangents) {
+            const seg0Len = Math.max(
+              Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y),
+              1,
+            );
+            const segNLen = Math.max(
+              Math.hypot(
+                pts[n - 1].x - pts[n - 2].x,
+                pts[n - 1].y - pts[n - 2].y,
+              ),
+              1,
+            );
+            const dt0 = Math.max(t[1] - t[0], 1e-4);
+            const dtN = Math.max(t[n - 1] - t[n - 2], 1e-4);
+
+            const scale0 = (seg0Len / dt0) * 0.012;
+            const scaleN = (segNLen / dtN) * 0.012;
+
+            sx = solveClampedSpline1D(
+              t,
+              pts.map((p) => p.x),
+              startTangent.x * scale0,
+              endTangent.x * scaleN,
+            );
+            sy = solveClampedSpline1D(
+              t,
+              pts.map((p) => p.y),
+              startTangent.y * scale0,
+              endTangent.y * scaleN,
+            );
+          } else {
+            sx = solveNaturalSpline1D(
+              t,
+              pts.map((p) => p.x),
+            );
+            sy = solveNaturalSpline1D(
+              t,
+              pts.map((p) => p.y),
+            );
+          }
+
+          const result = [];
+          for (let i = 0; i < n - 1; i++) {
+            const steps = i === n - 2 ? samplesPerSeg : samplesPerSeg - 1;
+            for (let s = 0; s <= steps; s++) {
+              const dt = (s / samplesPerSeg) * sx.h[i];
+              const dt2 = dt * dt;
+              const dt3 = dt2 * dt;
+              result.push({
+                x: sx.a[i] + sx.b[i] * dt + sx.c[i] * dt2 + sx.d[i] * dt3,
+                y: sy.a[i] + sy.b[i] * dt + sy.c[i] * dt2 + sy.d[i] * dt3,
+              });
+            }
+          }
+          return result;
+        }
+
+        function sampleLagrange(pts, totalSamples = 240) {
+          const n = pts.length;
+          if (n < 2) return [];
+          const tRaw = getParameters(pts);
+          const tMax = tRaw[n - 1] || 1;
+          const t = tRaw.map((val) => (val / tMax) * 2 - 1);
+
+          const w = new Array(n).fill(1);
+          for (let j = 0; j < n; j++) {
+            for (let k = 0; k < n; k++) {
+              if (j !== k) {
+                w[j] /= t[j] - t[k];
+              }
+            }
+          }
+
+          const result = [];
+          for (let s = 0; s <= totalSamples; s++) {
+            const u = -1 + (2 * s) / totalSamples;
+            let exactIdx = -1;
+            for (let j = 0; j < n; j++) {
+              if (Math.abs(u - t[j]) < 1e-7) {
+                exactIdx = j;
+                break;
+              }
+            }
+            if (exactIdx !== -1) {
+              result.push({ x: pts[exactIdx].x, y: pts[exactIdx].y });
+              continue;
+            }
+
+            let numX = 0;
+            let numY = 0;
+            let den = 0;
+            for (let j = 0; j < n; j++) {
+              const term = w[j] / (u - t[j]);
+              numX += term * pts[j].x;
+              numY += term * pts[j].y;
+              den += term;
+            }
+            const px = Math.max(-5000, Math.min(width + 5000, numX / den));
+            const py = Math.max(-5000, Math.min(height + 5000, numY / den));
+            result.push({ x: px, y: py });
+          }
+          return result;
+        }
+
+        function sampleCubicBSpline(pts, samplesPerSeg = 28) {
+          const n = pts.length;
+          if (n < 2) return [];
+          if (n === 2) return [...pts];
+
+          const ext = [pts[0], pts[0], ...pts, pts[n - 1], pts[n - 1]];
+          const result = [];
+
+          for (let i = 0; i < ext.length - 3; i++) {
+            const p0 = ext[i];
+            const p1 = ext[i + 1];
+            const p2 = ext[i + 2];
+            const p3 = ext[i + 3];
+
+            for (let s = 0; s <= samplesPerSeg; s++) {
+              const u = s / samplesPerSeg;
+              const u2 = u * u;
+              const u3 = u2 * u;
+
+              const b0 = ((1 - u) * (1 - u) * (1 - u)) / 6;
+              const b1 = (3 * u3 - 6 * u2 + 4) / 6;
+              const b2 = (-3 * u3 + 3 * u2 + 3 * u + 1) / 6;
+              const b3 = u3 / 6;
+
+              result.push({
+                x: b0 * p0.x + b1 * p1.x + b2 * p2.x + b3 * p3.x,
+                y: b0 * p0.y + b1 * p1.y + b2 * p2.y + b3 * p3.y,
+              });
+            }
+          }
+          return result;
+        }
+
+        function sampleBezier(pts, totalSamples = 180) {
+          const n = pts.length;
+          if (n < 2) return [];
+          const result = [];
+
+          for (let s = 0; s <= totalSamples; s++) {
+            const u = s / totalSamples;
+            const work = pts.map((p) => ({ x: p.x, y: p.y }));
+            for (let r = 1; r < n; r++) {
+              for (let i = 0; i < n - r; i++) {
+                work[i].x = (1 - u) * work[i].x + u * work[i + 1].x;
+                work[i].y = (1 - u) * work[i].y + u * work[i + 1].y;
+              }
+            }
+            result.push({ x: work[0].x, y: work[0].y });
+          }
+          return result;
+        }
+
+        function solveQuadraticRegression1D(t, val) {
+          const n = t.length;
+          let s0 = n,
+            s1 = 0,
+            s2 = 0,
+            s3 = 0,
+            s4 = 0;
+          let b0 = 0,
+            b1 = 0,
+            b2 = 0;
+
+          for (let i = 0; i < n; i++) {
+            const ti = t[i];
+            const ti2 = ti * ti;
+            s1 += ti;
+            s2 += ti2;
+            s3 += ti2 * ti;
+            s4 += ti2 * ti2;
+
+            b0 += val[i];
+            b1 += val[i] * ti;
+            b2 += val[i] * ti2;
+          }
+
+          const A = [
+            [s0, s1, s2, b0],
+            [s1, s2, s3, b1],
+            [s2, s3, s4, b2],
+          ];
+
+          for (let i = 0; i < 3; i++) {
+            let maxRow = i;
+            for (let k = i + 1; k < 3; k++) {
+              if (Math.abs(A[k][i]) > Math.abs(A[maxRow][i])) maxRow = k;
+            }
+            [A[i], A[maxRow]] = [A[maxRow], A[i]];
+
+            if (Math.abs(A[i][i]) < 1e-10) continue;
+            for (let k = i + 1; k < 3; k++) {
+              const factor = A[k][i] / A[i][i];
+              for (let j = i; j < 4; j++) {
+                A[k][j] -= factor * A[i][j];
+              }
+            }
+          }
+
+          const c = [0, 0, 0];
+          for (let i = 2; i >= 0; i--) {
+            if (Math.abs(A[i][i]) < 1e-10) {
+              c[i] = 0;
+              continue;
+            }
+            let sum = A[i][3];
+            for (let j = i + 1; j < 3; j++) {
+              sum -= A[i][j] * c[j];
+            }
+            c[i] = sum / A[i][i];
+          }
+          return c;
+        }
+
+        function sampleLeastSquares(pts, totalSamples = 140) {
+          const n = pts.length;
+          if (n < 2) return [];
+          const tRaw = getParameters(pts);
+          const tMax = tRaw[n - 1] || 1;
+          const t = tRaw.map((v) => v / tMax);
+
+          if (n === 2) {
+            return [...pts];
+          }
+
+          const cx = solveQuadraticRegression1D(
+            t,
+            pts.map((p) => p.x),
+          );
+          const cy = solveQuadraticRegression1D(
+            t,
+            pts.map((p) => p.y),
+          );
+
+          const result = [];
+          for (let s = 0; s <= totalSamples; s++) {
+            const u = s / totalSamples;
+            const u2 = u * u;
+            result.push({
+              x: cx[0] + cx[1] * u + cx[2] * u2,
+              y: cy[0] + cy[1] * u + cy[2] * u2,
+            });
+          }
+          return result;
+        }
+
+        // ==========================================
+        // RENDERING PIPELINE
+        // ==========================================
+
+        function drawGrid() {
+          ctx.clearRect(0, 0, width, height);
+
+          // Deep dark gradient
+          const grad = ctx.createRadialGradient(
+            width * 0.5,
+            height * 0.5,
+            40,
+            width * 0.5,
+            height * 0.5,
+            Math.max(width, height) * 0.7,
+          );
+          grad.addColorStop(0, "#0b101c");
+          grad.addColorStop(1, "#05070e");
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, 0, width, height);
+
+          const minorStep = 25;
+          const majorStep = 100;
+
+          // Minor grid
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = "rgba(30, 41, 59, 0.4)";
+          ctx.beginPath();
+          for (let x = 0; x <= width; x += minorStep) {
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, height);
+          }
+          for (let y = 0; y <= height; y += minorStep) {
+            ctx.moveTo(0, y);
+            ctx.lineTo(width, y);
+          }
+          ctx.stroke();
+
+          // Major grid
+          ctx.strokeStyle = "rgba(51, 65, 85, 0.45)";
+          ctx.beginPath();
+          for (let x = 0; x <= width; x += majorStep) {
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, height);
+          }
+          for (let y = 0; y <= height; y += majorStep) {
+            ctx.moveTo(0, y);
+            ctx.lineTo(width, y);
+          }
+          ctx.stroke();
+        }
+
+        function strokePolyline(poly, color, lineWidth, dash = []) {
+          if (!poly || poly.length < 2) return;
+          ctx.save();
+          ctx.strokeStyle = color;
+          ctx.lineWidth = lineWidth;
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.setLineDash(dash);
+
+          if (dash.length === 0) {
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 8;
+          }
+
+          ctx.beginPath();
+          ctx.moveTo(poly[0].x, poly[0].y);
+          for (let i = 1; i < poly.length; i++) {
+            ctx.lineTo(poly[i].x, poly[i].y);
+          }
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        function drawControlPoints() {
+          if (useBoundaryTangents && points.length >= 2) {
+            const pStart = points[0];
+            const pEnd = points[points.length - 1];
+
+            const startTip = {
+              x: pStart.x + startTangent.x,
+              y: pStart.y + startTangent.y,
+            };
+            const endTip = {
+              x: pEnd.x + endTangent.x,
+              y: pEnd.y + endTangent.y,
+            };
+
+            drawTangentVector(
+              pStart,
+              startTip,
+              "#fb7185",
+              "START DIR",
+              dragTarget?.type === "startHandle",
+              hoverTarget?.type === "startHandle",
+            );
+
+            drawTangentVector(
+              pEnd,
+              endTip,
+              "#38bdf8",
+              "END DIR",
+              dragTarget?.type === "endHandle",
+              hoverTarget?.type === "endHandle",
+            );
+          }
+
+          points.forEach((p, idx) => {
+            const isDragging =
+              dragTarget?.type === "point" && dragTarget.index === idx;
+            const isHovered =
+              hoverTarget?.type === "point" && hoverTarget.index === idx;
+            const radius = isDragging ? 8.5 : isHovered ? 7.5 : 6;
+
+            ctx.save();
+
+            if (isDragging || isHovered) {
+              ctx.beginPath();
+              ctx.arc(p.x, p.y, radius + 5, 0, Math.PI * 2);
+              ctx.fillStyle = "rgba(34, 211, 238, 0.25)";
+              ctx.fill();
+            }
+
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+            ctx.fillStyle = isDragging ? "#22d3ee" : "#f8fafc";
+            ctx.fill();
+
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = isDragging ? "#ffffff" : "#0f172a";
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+            ctx.fillStyle = "#0f172a";
+            ctx.fill();
+
+            if (showLabels) {
+              ctx.font = '600 11px "Consolas", monospace';
+              const label = `P${idx}`;
+              const coordText = `(${Math.round(p.x)}, ${Math.round(p.y)})`;
+
+              const offsetY = p.y < 36 ? 20 : -14;
+              ctx.fillStyle = isDragging || isHovered ? "#22d3ee" : "#cbd5e1";
+              ctx.textAlign = "center";
+              ctx.fillText(label, p.x, p.y + offsetY);
+
+              if (isDragging || isHovered) {
+                ctx.font = '400 10px "Consolas", monospace';
+                ctx.fillStyle = "#94a3b8";
+                ctx.fillText(
+                  coordText,
+                  p.x,
+                  p.y + offsetY + (p.y < 36 ? 12 : -12),
+                );
+              }
+            }
+
+            ctx.restore();
+          });
+        }
+
+        function drawTangentVector(
+          origin,
+          tip,
+          color,
+          label,
+          isDragging,
+          isHovered,
+        ) {
+          ctx.save();
+
+          ctx.strokeStyle = color;
+          ctx.lineWidth = isDragging || isHovered ? 2.5 : 1.8;
+          ctx.setLineDash([5, 4]);
+          ctx.beginPath();
+          ctx.moveTo(origin.x, origin.y);
+          ctx.lineTo(tip.x, tip.y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          const angle = Math.atan2(tip.y - origin.y, tip.x - origin.x);
+          const headLen = 11;
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.moveTo(tip.x, tip.y);
+          ctx.lineTo(
+            tip.x - headLen * Math.cos(angle - Math.PI / 6),
+            tip.y - headLen * Math.sin(angle - Math.PI / 6),
+          );
+          ctx.lineTo(
+            tip.x - headLen * Math.cos(angle + Math.PI / 6),
+            tip.y - headLen * Math.sin(angle + Math.PI / 6),
+          );
+          ctx.closePath();
+          ctx.fill();
+
+          const haloR = isDragging ? 14 : isHovered ? 12 : 9;
+          ctx.beginPath();
+          ctx.arc(tip.x, tip.y, haloR, 0, Math.PI * 2);
+          ctx.fillStyle = isDragging || isHovered ? `${color}44` : `${color}22`;
+          ctx.fill();
+
+          ctx.beginPath();
+          ctx.arc(tip.x, tip.y, 5, 0, Math.PI * 2);
+          ctx.fillStyle = "#0f172a";
+          ctx.fill();
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = color;
+          ctx.stroke();
+
+          ctx.font = '700 10px "Consolas", monospace';
+          ctx.fillStyle = color;
+          ctx.textAlign = "center";
+          ctx.fillText(label, tip.x, tip.y - 11);
+
+          ctx.restore();
+        }
+
+        function render() {
+          drawGrid();
+
+          curveConfigs.forEach((cfg) => {
+            if (!cfg.enabled) return;
+            let sampled = [];
+            switch (cfg.id) {
+              case "linear":
+                sampled = points;
+                break;
+              case "clampedSpline":
+                sampled = sampleCubicSplineWithSolver(points, true);
+                break;
+              case "naturalSpline":
+                sampled = sampleCubicSplineWithSolver(points, false);
+                break;
+              case "catmull":
+                sampled = sampleCatmullRom(points, tension);
+                break;
+              case "hermite":
+                sampled = sampleCubicHermite(points);
+                break;
+              case "lagrange":
+                sampled = sampleLagrange(points);
+                break;
+              case "bspline":
+                sampled = sampleCubicBSpline(points);
+                break;
+              case "bezier":
+                sampled = sampleBezier(points);
+                break;
+              case "leastSquares":
+                sampled = sampleLeastSquares(points);
+                break;
+            }
+            strokePolyline(sampled, cfg.color, cfg.width, cfg.dash);
+          });
+
+          drawControlPoints();
+        }
+
+        // ==========================================
+        // INTERACTION HANDLERS (Mouse & Touch)
+        // ==========================================
+
+        function getPointerPos(e) {
+          const rect = canvas.getBoundingClientRect();
+          const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+          const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+          return {
+            x: clientX - rect.left,
+            y: clientY - rect.top,
+          };
+        }
+
+        function findHitTarget(pos, threshold = 20) {
+          if (useBoundaryTangents && points.length >= 2) {
+            const pStart = points[0];
+            const pEnd = points[points.length - 1];
+            const startTip = {
+              x: pStart.x + startTangent.x,
+              y: pStart.y + startTangent.y,
+            };
+            const endTip = {
+              x: pEnd.x + endTangent.x,
+              y: pEnd.y + endTangent.y,
+            };
+
+            const dStart = Math.hypot(startTip.x - pos.x, startTip.y - pos.y);
+            const dEnd = Math.hypot(endTip.x - pos.x, endTip.y - pos.y);
+
+            if (dStart < threshold && dStart <= dEnd) {
+              return { type: "startHandle", index: 0 };
+            }
+            if (dEnd < threshold) {
+              return { type: "endHandle", index: points.length - 1 };
+            }
+          }
+
+          let minDist = threshold;
+          let found = -1;
+          points.forEach((p, idx) => {
+            const d = Math.hypot(p.x - pos.x, p.y - pos.y);
+            if (d < minDist) {
+              minDist = d;
+              found = idx;
+            }
+          });
+          if (found !== -1) {
+            return { type: "point", index: found };
+          }
+          return null;
+        }
+
+        function handlePointerDown(e) {
+          const pos = getPointerPos(e);
+          const target = findHitTarget(pos, 22);
+          if (target) {
+            dragTarget = target;
+            canvas.style.cursor = "grabbing";
+            updateReadout(target);
+            render();
+          }
+        }
+
+        function handlePointerMove(e) {
+          const pos = getPointerPos(e);
+
+          if (dragTarget) {
+            e.preventDefault();
+            if (dragTarget.type === "point") {
+              points[dragTarget.index].x = Math.max(
+                16,
+                Math.min(width - 16, pos.x),
+              );
+              points[dragTarget.index].y = Math.max(
+                16,
+                Math.min(height - 16, pos.y),
+              );
+            } else if (dragTarget.type === "startHandle") {
+              const p0 = points[0];
+              startTangent.x = Math.max(-350, Math.min(350, pos.x - p0.x));
+              startTangent.y = Math.max(-350, Math.min(350, pos.y - p0.y));
+              updateTangentReadout();
+            } else if (dragTarget.type === "endHandle") {
+              const pn = points[points.length - 1];
+              endTangent.x = Math.max(-350, Math.min(350, pos.x - pn.x));
+              endTangent.y = Math.max(-350, Math.min(350, pos.y - pn.y));
+              updateTangentReadout();
+            }
+            updateReadout(dragTarget);
+            render();
+            return;
+          }
+
+          const hover = findHitTarget(pos, 18);
+          const changed =
+            hover?.type !== hoverTarget?.type ||
+            hover?.index !== hoverTarget?.index;
+          if (changed) {
+            hoverTarget = hover;
+            canvas.style.cursor = hover ? "grab" : "crosshair";
+            updateReadout(hover);
+            render();
+          }
+        }
+
+        function handlePointerUp() {
+          if (dragTarget) {
+            dragTarget = null;
+            canvas.style.cursor = hoverTarget ? "grab" : "crosshair";
+            render();
+          }
+        }
+
+        function updateReadout(target) {
+          if (!target) {
+            coordReadout.textContent = "Hover or drag a point / handle";
+            coordReadout.classList.remove("active");
+            return;
+          }
+          coordReadout.classList.add("active");
+          if (target.type === "point" && points[target.index]) {
+            const p = points[target.index];
+            coordReadout.textContent = `P${target.index}: (${Math.round(p.x)}, ${Math.round(p.y)})`;
+          } else if (target.type === "startHandle") {
+            const deg = Math.round(
+              (Math.atan2(startTangent.y, startTangent.x) * 180) / Math.PI,
+            );
+            coordReadout.textContent = `START DIR: (${Math.round(startTangent.x)}, ${Math.round(startTangent.y)}) [${deg}°]`;
+          } else if (target.type === "endHandle") {
+            const deg = Math.round(
+              (Math.atan2(endTangent.y, endTangent.x) * 180) / Math.PI,
+            );
+            coordReadout.textContent = `END DIR: (${Math.round(endTangent.x)}, ${Math.round(endTangent.y)}) [${deg}°]`;
+          }
+        }
+
+        // Double click to insert point
+        canvas.addEventListener("dblclick", (e) => {
+          if (points.length >= 12) return;
+          const pos = getPointerPos(e);
+          if (findHitTarget(pos, 20)) return;
+
+          let bestIdx = points.length;
+          let minSegDist = Infinity;
+          for (let i = 0; i < points.length - 1; i++) {
+            const midX = (points[i].x + points[i + 1].x) * 0.5;
+            const midY = (points[i].y + points[i + 1].y) * 0.5;
+            const d = Math.hypot(pos.x - midX, pos.y - midY);
+            if (d < minSegDist) {
+              minSegDist = d;
+              bestIdx = i + 1;
+            }
+          }
+          points.splice(bestIdx, 0, { x: pos.x, y: pos.y });
+          updatePointButtons();
+          render();
+        });
+
+        canvas.addEventListener("mousedown", handlePointerDown);
+        window.addEventListener("mousemove", handlePointerMove);
+        window.addEventListener("mouseup", handlePointerUp);
+
+        canvas.addEventListener("touchstart", handlePointerDown, {
+          passive: false,
+        });
+        window.addEventListener("touchmove", handlePointerMove, {
+          passive: false,
+        });
+        window.addEventListener("touchend", handlePointerUp);
+
+        // Buttons & Sliders Event Listeners
+        document.getElementById("btn-add-pt").addEventListener("click", () => {
+          if (points.length >= 12) return;
+          const last = points[points.length - 1];
+          const prev = points[points.length - 2] || {
+            x: last.x - 60,
+            y: last.y,
+          };
+          const nx = Math.max(
+            30,
+            Math.min(width - 30, last.x + (last.x - prev.x) * 0.6),
+          );
+          const ny = Math.max(
+            30,
+            Math.min(height - 30, height * 0.5 + (Math.random() - 0.5) * 140),
+          );
+          points.push({ x: nx, y: ny });
+          updatePointButtons();
+          render();
+        });
+
+        document
+          .getElementById("btn-remove-pt")
+          .addEventListener("click", () => {
+            if (points.length <= 2) return;
+            points.pop();
+            updatePointButtons();
+            render();
+          });
+
+        document.getElementById("btn-reset").addEventListener("click", () => {
+          applyPreset("wave");
+        });
+
+        document.querySelectorAll("#preset-list .mode-btn").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            applyPreset(btn.dataset.preset);
+          });
+        });
+
+        document.getElementById("btn-all-on").addEventListener("click", () => {
+          curveConfigs.forEach((c) => (c.enabled = true));
+          buildControlsUI();
+          render();
+        });
+
+        document.getElementById("btn-all-off").addEventListener("click", () => {
+          curveConfigs.forEach((c) => (c.enabled = c.id === "linear"));
+          buildControlsUI();
+          render();
+        });
+
+        const tensionSlider = document.getElementById("tension-slider");
+        function setTension(v) {
+          tension = Math.max(0, Math.min(1, Math.round(v * 20) / 20));
+          tensionSlider.value = tension;
+          document.getElementById("tension-val").textContent =
+            tension.toFixed(2);
+          render();
+        }
+
+        tensionSlider.addEventListener("input", (e) => {
+          setTension(parseFloat(e.target.value));
+        });
+        document
+          .getElementById("btn-tension-dec")
+          .addEventListener("click", () => {
+            setTension(tension - 0.05);
+          });
+        document
+          .getElementById("btn-tension-inc")
+          .addEventListener("click", () => {
+            setTension(tension + 0.05);
+          });
+
+        document
+          .getElementById("toggle-labels")
+          .addEventListener("change", (e) => {
+            showLabels = e.target.checked;
+            render();
+          });
+
+        document
+          .getElementById("toggle-param-chord")
+          .addEventListener("change", (e) => {
+            useChordLength = e.target.checked;
+            render();
+          });
+
+        document
+          .getElementById("toggle-tangents")
+          .addEventListener("change", (e) => {
+            useBoundaryTangents = e.target.checked;
+            updateTangentReadout();
+            render();
+          });
+
+        // Initialize
+        window.addEventListener("resize", resizeCanvas);
+        window.onload = function () {
+          buildControlsUI();
+          resizeCanvas();
+        };
+      })();
+    </script>
+  </body>
+</html>

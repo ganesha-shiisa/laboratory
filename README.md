@@ -21,16 +21,16 @@ laboratory/
 
 ## 💡 実験一覧 (Experiments)
 
-| 日付         | カテゴリ | 実験タイトル / 概要                  | 主な使用技術                      | 備考                              |
-| ------------ | -------- | ------------------------------------ | --------------------------------- | --------------------------------- |
-| `2026-11-06` | `Math`   | ユークリッドの互除法による幾何分割   | Python (Pygame), HTML5 Canvas, JS | 数学から創るジェネラティブアート, |
-| `2026-11-08` | `Math`   | 正多角形による対数螺旋               | Python (Pygame), HTML5 Canvas, JS | 数学から創るジェネラティブアート, |
-| `2026-11-10` | `Math`   | フェルマー螺旋の描画・比率検証       | Python (Pygame), HTML5 Canvas, JS | 数学から創るジェネラティブアート, |
-| `2026-11-13` | `Math`   | 合同算術の可視化                     | Python (Pygame), HTML5 Canvas, JS | 数学から創るジェネラティブアート, |
-| `2026-11-15` | `Math`   | セル・オートマトンのシミュレーション | Python (Pygame), HTML5 Canvas, JS | 数学から創るジェネラティブアート, |
-| `2026-11-16` | `Math`   | 六角形セル・オートマトンの可視化     | Python (Pygame), HTML5 Canvas, JS | 数学から創るジェネラティブアート, |
-| `2026-11-17` | `Math`   | ジオデシック・グリッドの生成・可視化 | Python (PyVista, NumPy)           | 正二十面体の細分化・球面投影・双対化 |
-| `Plan`       | `Math`   | 曲線                                 |                                   | 数学から創るジェネラティブアート, |
+| 日付         | カテゴリ | 実験タイトル / 概要                  | 主な使用技術                       | 備考                                         |
+| ------------ | -------- | ------------------------------------ | ---------------------------------- | -------------------------------------------- |
+| `2026-11-06` | `Math`   | ユークリッドの互除法による幾何分割   | Python (Pygame), HTML5 Canvas, JS  | 数学から創るジェネラティブアート,            |
+| `2026-11-08` | `Math`   | 正多角形による対数螺旋               | Python (Pygame), HTML5 Canvas, JS  | 数学から創るジェネラティブアート,            |
+| `2026-11-10` | `Math`   | フェルマー螺旋の描画・比率検証       | Python (Pygame), HTML5 Canvas, JS  | 数学から創るジェネラティブアート,            |
+| `2026-11-13` | `Math`   | 合同算術の可視化                     | Python (Pygame), HTML5 Canvas, JS  | 数学から創るジェネラティブアート,            |
+| `2026-11-15` | `Math`   | セル・オートマトンのシミュレーション | Python (Pygame), HTML5 Canvas, JS  | 数学から創るジェネラティブアート,            |
+| `2026-11-16` | `Math`   | 六角形セル・オートマトンの可視化     | Python (Pygame), HTML5 Canvas, JS  | 数学から創るジェネラティブアート,            |
+| `2026-11-17` | `Math`   | ジオデシック・グリッドの生成・可視化 | Python (PyVista, NumPy)            | 正二十面体の細分化・球面投影・双対化         |
+| `2026-11-18` | `Math`   | 曲線補間・近似アルゴリズムの比較     | HTML5 Canvas, JavaScript (Vanilla) | スプライン・ラグランジュ・ベジェ・最小二乗法 |
 
 ## 🚀 新規実験の進め方 (Workflow)
 
@@ -48,4 +48,4 @@ laboratory/
   - 著者: 巴山竜来
   - 出版社: 技術評論社 (2019)
   - [書籍詳細 (gihyo.jp)](https://gihyo.jp/book/2019/978-4-297-10463-4)
-  - ※ `euclidean_algorithm`（幾何分割）、`logarithmic_spiral`（対数螺旋描画）、`fermat_spiral`（フェルマー螺旋描画）、`congruence`（合同算術の可視化）、`cellular_automaton`（セル・オートマトン）、および `hex_cellular_automaton`（六角形セル・オートマトン）のアルゴリズムの参考にしました。
+  - ※ `euclidean_algorithm`（幾何分割）、`logarithmic_spiral`（対数螺旋描画）、`fermat_spiral`（フェルマー螺旋描画）、`congruence`（合同算術の可視化）、`cellular_automaton`（セル・オートマトン）、`hex_cellular_automaton`（六角形セル・オートマトン）のアルゴリズムの参考にしました。
